@@ -41,7 +41,7 @@ app.use(async (req, res, next) => {
     next();
   } catch (err) {
     logger.error('Error de conexión MongoDB:', err.message);
-    res.status(500).json({ status: 'error', mensaje: 'Sin conexión a la base de datos' });
+    res.status(500).json({ status: 'error', mensaje: err.message });
   }
 });
 
