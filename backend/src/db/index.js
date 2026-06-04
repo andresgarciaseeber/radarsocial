@@ -17,7 +17,9 @@ async function conectar() {
 
 async function testConnection() {
   await conectar();
-  await mongoose.connection.db.command({ ping: 1 });
+  if (mongoose.connection.readyState !== 1) {
+    throw new Error(`MongoDB no conectado (estado: ${mongoose.connection.readyState})`);
+  }
 }
 
 module.exports = { conectar, testConnection };
