@@ -1,0 +1,25 @@
+:root {
+  --color-primario: #10204A;
+  --color-primario-alt: #0D1B3E;
+  --color-fondo: #F4F6FA;
+  --color-superficie: #FFFFFF;
+  --color-texto: #1A2238;
+  --color-texto-secundario: #6B7280;
+  --color-acento: #D62828;
+  --color-positivo: #2E7D32;
+  --color-advertencia: #E0A106;
+  --fuente-base: 'Montserrat', system-ui, sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--fuente-base);
+  background-color: var(--color-fondo);
+  color: var(--color-texto);
+  -webkit-font-smoothing: antialiased;
+}

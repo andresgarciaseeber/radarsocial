@@ -1,0 +1,10 @@
+# Entornos
+.env
+.env.local
+.env.production
+
+# Dependencias
+node_modules/
+
+# Build
+frontend/dist/
