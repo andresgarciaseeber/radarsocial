@@ -1,25 +1,22 @@
 const mongoose = require('mongoose');
 const { logger } = require('../utils/logger');
 
-// Cache de conexión — en Vercel cada instancia serverless reutiliza la misma
-let cached = global._mongooseConn ?? null;
-
 async function conectar() {
-  if (cached && mongoose.connection.readyState === 1) return cached;
+  // Si ya está conectado, no hace nada
+  if (mongoose.connection.readyState === 1) return;
 
-  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/radarsocial';
-  if (!cached) {
-    cached = global._mongooseConn = await mongoose.connect(uri, {
-      bufferCommands: false,
-    });
-    // Ocultar credenciales en el log
-    const logUri = uri.replace(/\/\/[^@]+@/, '//<credentials>@');
-    logger.info(`MongoDB conectado: ${logUri}`);
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error('MONGODB_URI no configurado — agregá la variable de entorno en Vercel');
   }
-  return cached;
+
+  await mongoose.connect(uri, { bufferCommands: false });
+  const logUri = uri.replace(/\/\/[^:]+:[^@]+@/, '//<credentials>@');
+  logger.info(`MongoDB conectado: ${logUri}`);
 }
 
 async function testConnection() {
+  await conectar();
   await mongoose.connection.db.command({ ping: 1 });
 }
 
