@@ -55,6 +55,18 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// TEMPORAL — diagnóstico de variables de entorno OAuth (sin exponer secretos)
+app.get('/debug/config', (req, res) => {
+  res.json({
+    META_APP_ID:        process.env.META_APP_ID || null,
+    META_REDIRECT_URI:  process.env.META_REDIRECT_URI || null,
+    X_CLIENT_ID:        process.env.X_CLIENT_ID || null,
+    X_REDIRECT_URI:     process.env.X_REDIRECT_URI || null,
+    BACKEND_URL:        process.env.BACKEND_URL || null,
+    FRONTEND_URL:       process.env.FRONTEND_URL || null,
+  });
+});
+
 // Plataformas (público)
 app.get('/api/plataformas', (req, res) => {
   const publico = Object.fromEntries(
