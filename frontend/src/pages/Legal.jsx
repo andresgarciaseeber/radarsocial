@@ -132,9 +132,6 @@ const CONTENIDOS = {
   },
 };
 
-const h3 = { fontSize: '1rem', fontWeight: 700, marginTop: 24, marginBottom: 8, color: 'var(--color-texto)' };
-const ul = { paddingLeft: 20, lineHeight: 1.6, fontSize: '0.92rem', color: 'var(--color-texto)' };
-
 export default function Legal() {
   const tipo = useLocation().pathname.replace(/^\//, '');
   const contenido = CONTENIDOS[tipo];
