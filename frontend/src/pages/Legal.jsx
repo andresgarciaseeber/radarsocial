@@ -3,6 +3,9 @@ import { useLocation, Link } from 'react-router-dom';
 const CONTACTO = 'andresgarciaseeber@gmail.com';
 const ACTUALIZADO = '2026-06-08';
 
+const h3 = { fontSize: '1rem', fontWeight: 700, marginTop: 24, marginBottom: 8, color: 'var(--color-texto)' };
+const ul = { paddingLeft: 20, lineHeight: 1.6, fontSize: '0.92rem', color: 'var(--color-texto)' };
+
 const CONTENIDOS = {
   privacidad: {
     titulo: 'Política de privacidad',
