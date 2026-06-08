@@ -2,7 +2,7 @@ require('dotenv').config();
 const axios = require('axios');
 const { logger } = require('../utils/logger');
 
-const GRAPH_BASE = 'https://graph.facebook.com/v19.0';
+const GRAPH_BASE = 'https://graph.facebook.com/v25.0';
 
 function appId() { return process.env.META_APP_ID; }
 function appSecret() { return process.env.META_APP_SECRET; }

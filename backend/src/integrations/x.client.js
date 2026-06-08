@@ -4,9 +4,8 @@ const { logger } = require('../utils/logger');
 
 const API_BASE = 'https://api.twitter.com/2';
 
-// El Bearer Token puede estar URL-encoded si fue copiado directo de la respuesta de la API
 function bearerToken() {
-  return decodeURIComponent(process.env.X_BEARER_TOKEN || '');
+  return process.env.X_BEARER_TOKEN || '';
 }
 function clientId()     { return process.env.X_CLIENT_ID; }
 function clientSecret() { return process.env.X_CLIENT_SECRET; }

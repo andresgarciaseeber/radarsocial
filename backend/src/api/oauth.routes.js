@@ -62,11 +62,11 @@ router.get('/meta/callback', async (req, res) => {
 
   try {
     const [{ data: meData }, { data: permsData }] = await Promise.all([
-      axios.get('https://graph.facebook.com/v19.0/me', { params: { access_token: '', fields: 'id,name' } }).catch(() => ({ data: {} })),
-      axios.get('https://graph.facebook.com/v19.0/me/permissions', { params: { access_token: '' } }).catch(() => ({ data: { data: [] } })),
+      axios.get('https://graph.facebook.com/v25.0/me', { params: { access_token: '', fields: 'id,name' } }).catch(() => ({ data: {} })),
+      axios.get('https://graph.facebook.com/v25.0/me/permissions', { params: { access_token: '' } }).catch(() => ({ data: { data: [] } })),
     ]);
 
-    const { data: tokenCortoData } = await axios.get('https://graph.facebook.com/v19.0/oauth/access_token', {
+    const { data: tokenCortoData } = await axios.get('https://graph.facebook.com/v25.0/oauth/access_token', {
       params: { client_id: process.env.META_APP_ID, client_secret: process.env.META_APP_SECRET, redirect_uri: process.env.META_REDIRECT_URI, code },
     });
     const tokenLargoData = await metaClient.obtenerTokenLargaDuracion(tokenCortoData.access_token);
@@ -74,13 +74,13 @@ router.get('/meta/callback', async (req, res) => {
     const tokenExpiresAt = new Date(Date.now() + tokenLargoData.expires_in * 1000);
 
     const [{ data: meInfo }, { data: perms }] = await Promise.all([
-      axios.get('https://graph.facebook.com/v19.0/me', { params: { access_token: tokenLargo, fields: 'id,name' } }),
-      axios.get('https://graph.facebook.com/v19.0/me/permissions', { params: { access_token: tokenLargo } }),
+      axios.get('https://graph.facebook.com/v25.0/me', { params: { access_token: tokenLargo, fields: 'id,name' } }),
+      axios.get('https://graph.facebook.com/v25.0/me/permissions', { params: { access_token: tokenLargo } }),
     ]);
     logger.info(`Token válido para: ${meInfo.name} (${meInfo.id})`);
     logger.info('Permisos:', perms.data?.map(p => `${p.permission}:${p.status}`).join(', '));
 
-    const { data: rawCuentas } = await axios.get('https://graph.facebook.com/v19.0/me/accounts', {
+    const { data: rawCuentas } = await axios.get('https://graph.facebook.com/v25.0/me/accounts', {
       params: { access_token: tokenLargo, fields: 'id,name,access_token' },
     });
     logger.info('Raw /me/accounts:', JSON.stringify(rawCuentas));
@@ -99,7 +99,7 @@ router.get('/meta/callback', async (req, res) => {
       conectadas++;
 
       try {
-        const { data: pageDetalle } = await axios.get(`https://graph.facebook.com/v19.0/${pagina.id}`,
+        const { data: pageDetalle } = await axios.get(`https://graph.facebook.com/v25.0/${pagina.id}`,
           { params: { access_token: pagina.access_token, fields: 'instagram_business_account' } });
         if (pageDetalle.instagram_business_account) {
           const igId = pageDetalle.instagram_business_account.id;

@@ -4,7 +4,7 @@ const PLATFORMS = {
   instagram: {
     label: 'Instagram',
     method: 'oauth',
-    authUrl: 'https://www.facebook.com/v19.0/dialog/oauth',
+    authUrl: 'https://www.facebook.com/v25.0/dialog/oauth',
     // Instagram Business se accede vía el page token — no se necesitan scopes de IG deprecados
     scopes: ['pages_show_list', 'pages_read_engagement'],
     requires: ['Cuenta Business o Creator vinculada a una Página de Facebook'],
@@ -12,7 +12,7 @@ const PLATFORMS = {
   facebook: {
     label: 'Facebook',
     method: 'oauth',
-    authUrl: 'https://www.facebook.com/v19.0/dialog/oauth',
+    authUrl: 'https://www.facebook.com/v25.0/dialog/oauth',
     scopes: ['pages_show_list', 'pages_read_engagement'],
     requires: ['Ser admin de la Página de Facebook'],
   },

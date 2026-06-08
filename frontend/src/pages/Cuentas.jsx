@@ -313,7 +313,7 @@ export default function Cuentas() {
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
           {Object.entries(plataformas)
-            .filter(([key]) => ['facebook', 'instagram'].includes(key))
+            .filter(([key]) => ['facebook', 'instagram', 'x'].includes(key))
             .map(([key, plat]) => (
               <div key={key} style={{ border: '1px solid #E5E7EB', borderRadius: 8, padding: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
