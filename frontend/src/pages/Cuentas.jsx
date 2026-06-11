@@ -26,10 +26,6 @@ const PLAT_COLOR = {
 };
 
 function mensajeError(code, params) {
-  if (code === 'sin_paginas') {
-    const perms = params.get('perms');
-    return `No se encontraron Páginas de Facebook. Permisos: ${perms || '(ninguno)'}. Volvé a conectar y seleccioná las páginas.`;
-  }
   return {
     acceso_denegado: 'El acceso fue denegado.',
     state_invalido:  'La sesión venció. Intentá de nuevo.',
@@ -42,6 +38,7 @@ export default function Cuentas() {
   const [plataformas, setPlataformas]   = useState({});
   const [cargando, setCargando]         = useState(true);
   const [aviso, setAviso]               = useState(null);
+  const [sinPaginas, setSinPaginas]     = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Estado del buscador de X
@@ -55,7 +52,8 @@ export default function Cuentas() {
     const conectado = searchParams.get('conectado');
     const error     = searchParams.get('error');
     if (conectado) setAviso({ ok: true,  texto: `${conectado} cuenta(s) conectadas correctamente.` });
-    if (error)     setAviso({ ok: false, texto: mensajeError(error, searchParams) });
+    if (error === 'sin_paginas') { setSinPaginas(true); }
+    else if (error) setAviso({ ok: false, texto: mensajeError(error, searchParams) });
     if (conectado || error) setSearchParams({}, { replace: true });
     cargarDatos();
   }, []);
@@ -147,6 +145,33 @@ export default function Cuentas() {
         }}>
           {aviso.texto}
           <span style={{ cursor: 'pointer', marginLeft: 16, fontWeight: 700 }} onClick={() => setAviso(null)}>✕</span>
+        </div>
+      )}
+
+      {/* ── Aviso sin_paginas ────────────────────────────────── */}
+      {sinPaginas && (
+        <div style={{
+          padding: '18px 20px', borderRadius: 8, marginBottom: 24,
+          background: '#FFF8E1', border: '1px solid #F9A825',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <strong style={{ color: '#E65100', fontSize: '0.9rem' }}>
+              Facebook no encontró páginas asociadas a tu cuenta
+            </strong>
+            <span style={{ cursor: 'pointer', color: '#999', marginLeft: 16, lineHeight: 1 }} onClick={() => setSinPaginas(false)}>✕</span>
+          </div>
+          <p style={{ fontSize: '0.83rem', color: '#5D4037', margin: '10px 0 12px' }}>
+            Los permisos se otorgaron correctamente, pero no se seleccionó ninguna página durante el proceso.
+            Facebook muestra un paso con checkboxes donde debés elegir explícitamente cuáles páginas darle acceso a la app.
+          </p>
+          <ol style={{ fontSize: '0.82rem', color: '#5D4037', margin: '0 0 14px 16px', lineHeight: 1.8 }}>
+            <li>Hacé clic en <strong>Reconectar Facebook</strong> debajo.</li>
+            <li>En la ventana de Facebook, en el paso <em>"¿Qué páginas querés usar con esta app?"</em>, <strong>tildá tu página</strong>.</li>
+            <li>Continuá hasta el final y autorizá.</li>
+          </ol>
+          <button onClick={() => { setSinPaginas(false); handleConectar('facebook'); }} style={btnPrimario}>
+            Reconectar Facebook
+          </button>
         </div>
       )}
 
