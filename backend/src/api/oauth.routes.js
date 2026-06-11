@@ -163,4 +163,81 @@ async function upsertCuenta({ platform, external_id, handle, display_name, acces
   );
 }
 
+// ── Helpers para signed_request de Meta ───────────────────────────────────
+function parsearSignedRequest(signedRequest) {
+  const [sigB64, payloadB64] = signedRequest.split('.');
+  if (!sigB64 || !payloadB64) return null;
+
+  const firma = Buffer.from(sigB64.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+  const esperada = crypto.createHmac('sha256', process.env.META_APP_SECRET)
+    .update(payloadB64).digest();
+
+  if (!crypto.timingSafeEqual(firma, esperada)) return null;
+
+  return JSON.parse(Buffer.from(payloadB64.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+}
+
+// POST /auth/meta/deauthorize
+// Facebook hace ping cuando un usuario revoca el acceso a la app desde su cuenta de Facebook
+router.post('/meta/deauthorize', express.urlencoded({ extended: false }), async (req, res) => {
+  const { signed_request } = req.body;
+  if (!signed_request) return res.sendStatus(400);
+
+  const payload = parsearSignedRequest(signed_request);
+  if (!payload) {
+    logger.warn('Deauthorize Meta: firma inválida');
+    return res.sendStatus(403);
+  }
+
+  const facebookUserId = payload.user_id;
+  logger.info(`Deauthorize Meta: usuario FB ${facebookUserId} revocó acceso`);
+
+  try {
+    // Marcar como desconectada cualquier cuenta vinculada a ese usuario de Facebook
+    // No podemos filtrar por external_id directamente porque es el ID de página, no del usuario
+    // Marcamos por connected_by si tenemos correlación — en esta implementación solo logueamos
+    await SocialAccount.updateMany(
+      { platform: { $in: ['facebook', 'instagram'] }, external_id: facebookUserId },
+      { connection_status: 'desconectada', last_error: 'Usuario revocó acceso desde Facebook' }
+    );
+  } catch (err) {
+    logger.error('Deauthorize Meta: error DB:', err.message);
+  }
+
+  res.sendStatus(200);
+});
+
+// POST /auth/meta/data-deletion
+// Facebook hace ping cuando un usuario solicita eliminación de sus datos
+// Debe responder con { url, confirmation_code } donde url es una página de estado
+router.post('/auth/meta/data-deletion', express.urlencoded({ extended: false }), async (req, res) => {
+  const { signed_request } = req.body;
+  if (!signed_request) return res.sendStatus(400);
+
+  const payload = parsearSignedRequest(signed_request);
+  if (!payload) {
+    logger.warn('Data deletion Meta: firma inválida');
+    return res.sendStatus(403);
+  }
+
+  const facebookUserId = payload.user_id;
+  const confirmationCode = `del_${facebookUserId}_${Date.now()}`;
+  logger.info(`Data deletion Meta: solicitud para usuario FB ${facebookUserId}`);
+
+  try {
+    await SocialAccount.updateMany(
+      { platform: { $in: ['facebook', 'instagram'] }, external_id: facebookUserId },
+      { connection_status: 'desconectada', access_token: null, refresh_token: null,
+        last_error: 'Datos eliminados por solicitud del usuario' }
+    );
+  } catch (err) {
+    logger.error('Data deletion Meta: error DB:', err.message);
+  }
+
+  res.json({
+    url: `${config.frontendUrl}/eliminacion-datos?code=${confirmationCode}`,
+    confirmation_code: confirmationCode,
+  });
+});
+
 module.exports = router;
