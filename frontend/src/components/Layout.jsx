@@ -20,11 +20,15 @@ export default function Layout({ children }) {
   const { usuario, logout } = useAuth();
   const location  = useLocation();
   const navigate  = useNavigate();
-  const [cuentas, setCuentas] = useState([]);
+  const [cuentas, setCuentas]     = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     listarCuentas().then(data => setCuentas(data)).catch(() => {});
-  }, [location.pathname]); // refresca al navegar
+  }, [location.pathname]);
+
+  // Cerrar sidebar al navegar (mobile)
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
 
   function handleLogout() { logout(); navigate('/login'); }
 
@@ -33,21 +37,64 @@ export default function Layout({ children }) {
     (to === '/dashboard' && location.pathname.startsWith('/cuenta/'));
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div className="rs-layout">
+      {/* ── Barra superior mobile ─────────────────────── */}
+      <div className="rs-topbar">
+        <button
+          onClick={() => setSidebarOpen(o => !o)}
+          aria-label="Abrir menú"
+          style={{
+            background: 'transparent', border: 'none', color: '#fff',
+            fontSize: '1.25rem', cursor: 'pointer', padding: '4px 6px',
+            display: 'flex', alignItems: 'center', lineHeight: 1,
+          }}
+        >
+          ☰
+        </button>
+        <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#fff' }}>Radar Social</span>
+      </div>
+
+      {/* ── Overlay (cierra sidebar al tocar fuera) ───── */}
+      <div
+        className={`rs-overlay${sidebarOpen ? ' active' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
       {/* ── Sidebar ─────────────────────────────────────── */}
-      <aside style={{
-        width: 224, flexShrink: 0,
-        background: 'var(--color-primario)',
-        color: '#fff',
-        display: 'flex', flexDirection: 'column',
-        overflowY: 'auto',
-      }}>
-        {/* Logo */}
-        <div style={{ padding: '20px 18px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem', letterSpacing: '0.01em' }}>
-            Radar Social
+      <aside
+        className={`rs-sidebar${sidebarOpen ? ' open' : ''}`}
+        style={{
+          width: 224, flexShrink: 0,
+          background: 'var(--color-primario)',
+          color: '#fff',
+          display: 'flex', flexDirection: 'column',
+          overflowY: 'auto',
+        }}
+      >
+        {/* Logo + botón cerrar (mobile) */}
+        <div style={{
+          padding: '20px 18px 14px',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem', letterSpacing: '0.01em' }}>
+              Radar Social
+            </div>
+            <div style={{ fontSize: '0.68rem', opacity: 0.5, marginTop: 2 }}>La Rioja</div>
           </div>
-          <div style={{ fontSize: '0.68rem', opacity: 0.5, marginTop: 2 }}>La Rioja</div>
+          <button
+            className="rs-sidebar-close"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Cerrar menú"
+            style={{
+              background: 'transparent', border: 'none',
+              color: 'rgba(255,255,255,0.6)', fontSize: '1rem',
+              cursor: 'pointer', padding: '2px 4px', lineHeight: 1,
+            }}
+          >
+            ✕
+          </button>
         </div>
 
         {/* Nav principal */}
@@ -70,7 +117,11 @@ export default function Layout({ children }) {
         {/* Cuentas monitoreadas (mini-nav) */}
         {cuentas.length > 0 && (
           <div style={{ marginTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ padding: '10px 18px 4px', fontSize: '0.62rem', fontWeight: 700, opacity: 0.45, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <div style={{
+              padding: '10px 18px 4px',
+              fontSize: '0.62rem', fontWeight: 700, opacity: 0.45,
+              textTransform: 'uppercase', letterSpacing: '0.08em',
+            }}>
               Monitoreadas
             </div>
             {cuentas.map(c => {
@@ -83,12 +134,10 @@ export default function Layout({ children }) {
                   background: activ ? 'rgba(255,255,255,0.1)' : 'transparent',
                   borderLeft: activ ? '3px solid rgba(255,255,255,0.6)' : '3px solid transparent',
                 }}>
-                  {/* Dot de plataforma */}
                   <span style={{
                     width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
                     background: PLAT_COLOR[c.platform] ?? '#6B7280',
                   }} />
-                  {/* Dot de estado */}
                   <span style={{
                     width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
                     background: ESTADO_DOT[c.connection_status] ?? '#9E9E9E',
@@ -106,7 +155,6 @@ export default function Layout({ children }) {
           </div>
         )}
 
-        {/* Spacer */}
         <div style={{ flex: 1 }} />
 
         {/* Usuario */}
@@ -125,7 +173,7 @@ export default function Layout({ children }) {
       </aside>
 
       {/* ── Contenido principal ─────────────────────────── */}
-      <main style={{ flex: 1, background: 'var(--color-fondo)', minHeight: '100vh', padding: '28px 32px' }}>
+      <main className="rs-main" style={{ background: 'var(--color-fondo)' }}>
         {children}
       </main>
     </div>

@@ -23,3 +23,78 @@ body {
   color: var(--color-texto);
   -webkit-font-smoothing: antialiased;
 }
+
+/* ── Layout responsive ───────────────────────────────── */
+.rs-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.rs-main {
+  flex: 1;
+  min-height: 100vh;
+  padding: 28px 32px;
+}
+
+.rs-topbar {
+  display: none;
+}
+
+.rs-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 199;
+  cursor: pointer;
+}
+
+.rs-overlay.active {
+  display: block;
+}
+
+.rs-sidebar-close {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .rs-sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 200;
+    transform: translateX(-224px);
+    transition: transform 0.25s ease;
+  }
+
+  .rs-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .rs-topbar {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: var(--color-primario);
+    z-index: 100;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .rs-sidebar-close {
+    display: block;
+  }
+
+  .rs-main {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 64px 16px 16px !important;
+    overflow-x: auto;
+  }
+}

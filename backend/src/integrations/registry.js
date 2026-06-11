@@ -5,14 +5,20 @@ const PLATFORMS = {
     label: 'Instagram',
     method: 'oauth',
     authUrl: 'https://www.facebook.com/v25.0/dialog/oauth',
-    scopes: ['pages_show_list', 'pages_read_engagement', 'pages_read_user_content', 'pages_manage_engagement'],
+    scopes: [
+      'pages_show_list', 'pages_read_engagement', 'pages_read_user_content', 'pages_manage_engagement',
+      'instagram_basic',
+    ],
     requires: ['Cuenta Business o Creator vinculada a una Página de Facebook'],
   },
   facebook: {
     label: 'Facebook',
     method: 'oauth',
     authUrl: 'https://www.facebook.com/v25.0/dialog/oauth',
-    scopes: ['pages_show_list', 'pages_read_engagement', 'pages_read_user_content', 'pages_manage_engagement'],
+    scopes: [
+      'pages_show_list', 'pages_read_engagement', 'pages_read_user_content', 'pages_manage_engagement',
+      'instagram_basic',
+    ],
     requires: ['Ser admin de la Página de Facebook'],
   },
   x: {

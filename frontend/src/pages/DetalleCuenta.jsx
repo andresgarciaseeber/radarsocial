@@ -148,12 +148,12 @@ export default function DetalleCuenta() {
       </div>
 
       {/* ── Tabs ───────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 22, borderBottom: '2px solid #F0F0F0' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 22, borderBottom: '2px solid #F0F0F0', overflowX: 'auto', scrollbarWidth: 'none' }}>
         {[['metricas', 'Métricas'], ['posts', `Posts (${postsData.total})`], ['analisis', 'Análisis']].map(([key, label]) => (
           <button key={key} onClick={() => handleTabChange(key)} style={{
             background: 'none', border: 'none', cursor: 'pointer',
             padding: '8px 18px', fontSize: '0.88rem', fontWeight: 600,
-            fontFamily: 'var(--fuente-base)',
+            fontFamily: 'var(--fuente-base)', whiteSpace: 'nowrap',
             color: tab === key ? 'var(--color-primario)' : 'var(--color-texto-secundario)',
             borderBottom: tab === key ? '2px solid var(--color-primario)' : '2px solid transparent',
             marginBottom: -2,
