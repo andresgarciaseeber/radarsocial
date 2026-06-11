@@ -34,10 +34,16 @@ router.get('/:platform/iniciar', verificarToken, async (req, res) => {
     paramObj.code_challenge        = codeChallenge;
     paramObj.code_challenge_method = 'S256';
   } else {
-    paramObj.client_id    = process.env.META_APP_ID;
     paramObj.redirect_uri = process.env.META_REDIRECT_URI;
-    paramObj.scope        = plataforma.scopes.join(',');
-    paramObj.auth_type    = 'rerequest';
+    if (process.env.META_CONFIG_ID) {
+      // Login Configuration: los permisos y la app ya están definidos en el portal
+      paramObj.config_id = process.env.META_CONFIG_ID;
+    } else {
+      // Fallback: scopes explícitos
+      paramObj.client_id = process.env.META_APP_ID;
+      paramObj.scope     = plataforma.scopes.join(',');
+    }
+    paramObj.auth_type = 'rerequest';
   }
 
   await OAuthState.create({ state, platform, user_id: req.usuario.id, expires_at: expiresAt, code_verifier: codeVerifier });
