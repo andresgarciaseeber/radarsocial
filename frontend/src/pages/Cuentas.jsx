@@ -128,7 +128,13 @@ export default function Cuentas() {
       setAviso({ ok: true, texto: res.mensaje || 'Recolección completada.' });
       cargarDatos();
     } catch (err) {
-      setAviso({ ok: false, texto: err.response?.data?.mensaje || 'Error al ejecutar el recolector.' });
+      const status = err.response?.status;
+      const msg = err.response?.data?.mensaje
+        || (status === 403 ? 'Sin permisos — necesitás rol admin.' : null)
+        || (status === 401 ? 'Sesión vencida, volvé a iniciar sesión.' : null)
+        || (status === 504 ? 'Timeout en Vercel — demasiadas cuentas o API lenta.' : null)
+        || `Error ${status || 'de red'} al ejecutar el recolector.`;
+      setAviso({ ok: false, texto: msg });
     } finally {
       setRecolectando(false);
     }

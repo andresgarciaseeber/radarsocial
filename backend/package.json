@@ -11,6 +11,7 @@
     "test:meta": "node src/integrations/test-meta.js",
     "test:x": "node src/integrations/test-x.js",
     "collect": "node -e \"require('dotenv').config(); require('./src/collector/collector').ejecutarCiclo().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\"",
+    "clear-demo": "node src/db/clear-demo.js",
     "update-user": "node src/db/update-user.js"
   },
   "dependencies": {
