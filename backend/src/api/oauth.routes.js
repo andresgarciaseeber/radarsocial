@@ -61,11 +61,6 @@ router.get('/meta/callback', async (req, res) => {
   await OAuthState.deleteOne({ state });
 
   try {
-    const [{ data: meData }, { data: permsData }] = await Promise.all([
-      axios.get('https://graph.facebook.com/v25.0/me', { params: { access_token: '', fields: 'id,name' } }).catch(() => ({ data: {} })),
-      axios.get('https://graph.facebook.com/v25.0/me/permissions', { params: { access_token: '' } }).catch(() => ({ data: { data: [] } })),
-    ]);
-
     const { data: tokenCortoData } = await axios.get('https://graph.facebook.com/v25.0/oauth/access_token', {
       params: { client_id: process.env.META_APP_ID, client_secret: process.env.META_APP_SECRET, redirect_uri: process.env.META_REDIRECT_URI, code },
     });
