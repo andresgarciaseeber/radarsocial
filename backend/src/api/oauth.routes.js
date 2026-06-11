@@ -70,57 +70,72 @@ router.get('/meta/callback', async (req, res) => {
   await OAuthState.deleteOne({ state });
 
   try {
+    logger.info('[CB1] intercambiando token corto...');
     const { data: tokenCortoData } = await axios.get('https://graph.facebook.com/v25.0/oauth/access_token', {
       params: { client_id: process.env.META_APP_ID, client_secret: process.env.META_APP_SECRET, redirect_uri: process.env.META_REDIRECT_URI, code },
     });
+
+    logger.info('[CB2] obteniendo token largo...');
     const tokenLargoData = await metaClient.obtenerTokenLargaDuracion(tokenCortoData.access_token);
     const tokenLargo = tokenLargoData.access_token;
     const tokenExpiresAt = new Date(Date.now() + tokenLargoData.expires_in * 1000);
 
+    logger.info('[CB3] llamando /me y /me/permissions...');
     const [{ data: meInfo }, { data: perms }] = await Promise.all([
       axios.get('https://graph.facebook.com/v25.0/me', { params: { access_token: tokenLargo, appsecret_proof: metaProof(tokenLargo), fields: 'id,name' } }),
       axios.get('https://graph.facebook.com/v25.0/me/permissions', { params: { access_token: tokenLargo, appsecret_proof: metaProof(tokenLargo) } }),
     ]);
-    logger.info(`Token válido para: ${meInfo.name} (${meInfo.id})`);
-    logger.info('Permisos:', perms.data?.map(p => `${p.permission}:${p.status}`).join(', '));
+    logger.info(`[CB4] Token válido para: ${meInfo.name} (${meInfo.id})`);
+    logger.info(`[CB4] Permisos: ${(perms.data || []).map(p => `${p.permission}:${p.status}`).join(', ')}`);
 
+    logger.info('[CB5] llamando /me/accounts...');
     const { data: rawCuentas } = await axios.get('https://graph.facebook.com/v25.0/me/accounts', {
       params: { access_token: tokenLargo, appsecret_proof: metaProof(tokenLargo), fields: 'id,name,access_token' },
     });
-    logger.info('Raw /me/accounts:', JSON.stringify(rawCuentas));
+    logger.info(`[CB6] /me/accounts respuesta: ${JSON.stringify(rawCuentas).slice(0, 300)}`);
     const paginas = rawCuentas.data || [];
 
     if (paginas.length === 0) {
-      const permsOtorgados = perms.data?.filter(p => p.status === 'granted').map(p => p.permission).join(',');
+      const permsOtorgados = (perms.data || []).filter(p => p.status === 'granted').map(p => p.permission).join(',');
       return res.redirect(`${config.frontendUrl}/cuentas?error=sin_paginas&perms=${encodeURIComponent(permsOtorgados)}`);
     }
 
+    logger.info(`[CB7] ${paginas.length} página(s) encontrada(s): ${paginas.map(p => p.name).join(', ')}`);
     let conectadas = 0;
     for (const pagina of paginas) {
+      logger.info(`[CB8] guardando página ${pagina.id} (${pagina.name})...`);
       await upsertCuenta({ platform: 'facebook', external_id: pagina.id, handle: pagina.name, display_name: pagina.name,
         access_token: cifrar(pagina.access_token), refresh_token: cifrar(tokenLargo),
         token_expires_at: tokenExpiresAt, connected_by: oauthState.user_id });
       conectadas++;
 
       try {
+        logger.info(`[CB9] buscando Instagram vinculado a página ${pagina.id}...`);
         const { data: pageDetalle } = await axios.get(`https://graph.facebook.com/v25.0/${pagina.id}`,
           { params: { access_token: pagina.access_token, appsecret_proof: metaProof(pagina.access_token), fields: 'instagram_business_account' } });
         if (pageDetalle.instagram_business_account) {
           const igId = pageDetalle.instagram_business_account.id;
+          logger.info(`[CB10] Instagram ID ${igId}, obteniendo métricas...`);
           const igInfo = await metaClient.obtenerMetricasInstagram(igId, pagina.access_token);
           await upsertCuenta({ platform: 'instagram', external_id: igId,
             handle: igInfo.username || igId, display_name: igInfo.name || igInfo.username,
             access_token: cifrar(pagina.access_token), refresh_token: cifrar(tokenLargo),
             token_expires_at: tokenExpiresAt, connected_by: oauthState.user_id });
           conectadas++;
+          logger.info(`[CB11] Instagram @${igInfo.username} guardado`);
+        } else {
+          logger.info(`[CB9] página ${pagina.id} sin Instagram vinculado`);
         }
-      } catch (igErr) { logger.warn(`Instagram para página ${pagina.id}: ${igErr.message}`); }
+      } catch (igErr) {
+        logger.info(`[CB-IGerr] Instagram para página ${pagina.id}: ${igErr.response?.data ? JSON.stringify(igErr.response.data) : igErr.message}`);
+      }
     }
 
-    logger.info(`OAuth Meta OK — ${conectadas} cuenta(s) para usuario ${oauthState.user_id}`);
+    logger.info(`[CB-OK] OAuth Meta OK — ${conectadas} cuenta(s) para usuario ${oauthState.user_id}`);
     res.redirect(`${config.frontendUrl}/cuentas?conectado=${conectadas}`);
   } catch (err) {
-    logger.error('Error en callback OAuth Meta:', err.response?.data || err.message);
+    const detail = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+    logger.info(`[CB-ERR] Error en callback OAuth Meta: ${detail}`);
     res.redirect(`${config.frontendUrl}/cuentas?error=error_interno`);
   }
 });
