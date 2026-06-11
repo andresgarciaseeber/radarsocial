@@ -12,7 +12,8 @@ const accountsRoutes = require('./api/accounts.routes');
 const oauthRoutes    = require('./api/oauth.routes');
 const metricsRoutes  = require('./api/metrics.routes');
 const postsRoutes    = require('./api/posts.routes');
-const commentsRoutes = require('./api/comments.routes');
+const commentsRoutes  = require('./api/comments.routes');
+const analyticsRoutes = require('./api/analytics.routes');
 
 const app = express();
 
@@ -82,6 +83,7 @@ app.use('/auth',            oauthRoutes);
 app.use('/api/metricas',    metricsRoutes);
 app.use('/api/posts',       postsRoutes);
 app.use('/api/comentarios', commentsRoutes);
+app.use('/api/analytics',  analyticsRoutes);
 
 // ── Ejecución local (fuera de Vercel) ─────────────────────────────────────
 if (!process.env.VERCEL) {

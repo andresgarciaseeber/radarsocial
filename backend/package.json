@@ -10,7 +10,8 @@
     "seed:demo": "node src/db/seed-demo.js",
     "test:meta": "node src/integrations/test-meta.js",
     "test:x": "node src/integrations/test-x.js",
-    "collect": "node -e \"require('dotenv').config(); require('./src/collector/collector').ejecutarCiclo().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\""
+    "collect": "node -e \"require('dotenv').config(); require('./src/collector/collector').ejecutarCiclo().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\"",
+    "update-user": "node src/db/update-user.js"
   },
   "dependencies": {
     "axios": "^1.7.0",

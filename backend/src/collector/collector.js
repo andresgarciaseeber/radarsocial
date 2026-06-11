@@ -7,6 +7,8 @@ const metaClient = require('../integrations/meta.client');
 const { colectarMeta } = require('./meta.collector');
 const { colectarX }    = require('./x.collector');
 const SocialAccount = require('../models/SocialAccount');
+const Post = require('../models/Post');
+const { analizarSentimientoComentarios } = require('../integrations/sentiment');
 
 const PAUSA_MS = 2000;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -33,6 +35,18 @@ async function ejecutarCiclo() {
     await sleep(PAUSA_MS);
   }
   logger.info('Recolector: ciclo completado.');
+  await procesarSentimientoPendiente();
+}
+
+async function procesarSentimientoPendiente() {
+  if (!process.env.ANTHROPIC_API_KEY) return;
+  try {
+    const postIds = await Post.find({}).select('_id').lean();
+    const procesados = await analizarSentimientoComentarios(postIds.map(p => p._id));
+    if (procesados > 0) logger.info(`Sentimiento: ${procesados} comentario(s) analizados.`);
+  } catch (err) {
+    logger.error('Sentimiento: error en ciclo:', err.message);
+  }
 }
 
 async function procesarCuenta(cuenta) {

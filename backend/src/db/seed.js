@@ -4,8 +4,8 @@ const { conectar } = require('./index');
 const User = require('../models/User');
 const { logger } = require('../utils/logger');
 
-const ADMIN_EMAIL    = 'admin@radarsocial.com';
-const ADMIN_PASSWORD = 'admin123';
+const ADMIN_EMAIL    = 'larioja@navegamisitio.com.ar';
+const ADMIN_PASSWORD = 'Analisis.2027';
 
 async function seed() {
   await conectar();

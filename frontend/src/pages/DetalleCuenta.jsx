@@ -8,6 +8,8 @@ import Layout from '../components/Layout';
 import { obtenerResumen, obtenerHistorial } from '../api/metricas';
 import { obtenerPosts } from '../api/posts';
 import { obtenerComentarios } from '../api/comentarios';
+import { obtenerAnalytics } from '../api/analytics';
+import AnalisisTab from './AnalisisTab';
 
 const PLAT_COLOR = {
   facebook: '#1877F2', instagram: '#E1306C',
@@ -35,11 +37,14 @@ export default function DetalleCuenta() {
   const [historial,      setHistorial]      = useState([]);
   const [postsData,      setPostsData]      = useState({ posts: [], total: 0, paginas: 0 });
   const [pagina,         setPagina]         = useState(1);
-  const [tab,            setTab]            = useState('metricas'); // 'metricas' | 'posts'
+  const [tab,            setTab]            = useState('metricas'); // 'metricas' | 'posts' | 'analisis'
   const [postExpandido,  setPostExpandido]  = useState(null);
   const [comentarios,    setComentarios]    = useState([]);
   const [cargando,       setCargando]       = useState(true);
   const [cargandoComent, setCargandoComent] = useState(false);
+  const [analytics,      setAnalytics]      = useState(null);
+  const [cargandoAnal,   setCargandoAnal]   = useState(false);
+  const analyticsYaCargados                 = React.useRef(false);
 
   useEffect(() => {
     let activo = true;
@@ -66,6 +71,28 @@ export default function DetalleCuenta() {
   useEffect(() => {
     obtenerPosts({ cuentaId: id, pagina, limite: 20 }).then(setPostsData);
   }, [id, pagina]);
+
+  async function cargarAnalytics() {
+    if (analyticsYaCargados.current) return;
+    setCargandoAnal(true);
+    try {
+      const data = await obtenerAnalytics(id);
+      setAnalytics(data);
+      analyticsYaCargados.current = true;
+    } finally {
+      setCargandoAnal(false);
+    }
+  }
+
+  function handleTabChange(key) {
+    setTab(key);
+    if (key === 'analisis') cargarAnalytics();
+  }
+
+  function handleSentimientoActualizado() {
+    analyticsYaCargados.current = false;
+    cargarAnalytics();
+  }
 
   async function toggleComentarios(postId) {
     if (postExpandido === postId) { setPostExpandido(null); return; }
@@ -122,8 +149,8 @@ export default function DetalleCuenta() {
 
       {/* ── Tabs ───────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 22, borderBottom: '2px solid #F0F0F0' }}>
-        {[['metricas', 'Métricas'], ['posts', `Posts (${postsData.total})`]].map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)} style={{
+        {[['metricas', 'Métricas'], ['posts', `Posts (${postsData.total})`], ['analisis', 'Análisis']].map(([key, label]) => (
+          <button key={key} onClick={() => handleTabChange(key)} style={{
             background: 'none', border: 'none', cursor: 'pointer',
             padding: '8px 18px', fontSize: '0.88rem', fontWeight: 600,
             fontFamily: 'var(--fuente-base)',
@@ -186,6 +213,18 @@ export default function DetalleCuenta() {
             </div>
           )}
         </>
+      )}
+
+      {/* ── Tab: Análisis ──────────────────────────── */}
+      {tab === 'analisis' && (
+        cargandoAnal
+          ? <p style={{ color: 'var(--color-texto-secundario)', fontSize: '0.85rem' }}>Calculando métricas...</p>
+          : <AnalisisTab
+              data={analytics}
+              cuentaId={id}
+              platColor={platColor}
+              onSentimientoActualizado={handleSentimientoActualizado}
+            />
       )}
 
       {/* ── Tab: Posts ─────────────────────────────── */}
