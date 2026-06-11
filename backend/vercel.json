@@ -12,11 +12,5 @@
       "src": "/(.*)",
       "dest": "src/index.js"
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/collect",
-      "schedule": "0 */6 * * *"
-    }
   ]
 }
