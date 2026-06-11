@@ -69,6 +69,24 @@ app.get('/debug/config', (req, res) => {
   });
 });
 
+// Diagnóstico de credenciales de X
+app.get('/debug/x-check', async (req, res) => {
+  if (!process.env.X_BEARER_TOKEN) {
+    return res.status(500).json({ ok: false, error: 'X_BEARER_TOKEN no configurado' });
+  }
+  try {
+    const xClient = require('./integrations/x.client');
+    const usuario = await xClient.buscarUsuarioPorUsername('x');
+    res.json({ ok: true, usuario });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      status: err.response?.status,
+      error: err.response?.data ?? err.message,
+    });
+  }
+});
+
 // Plataformas (público)
 app.get('/api/plataformas', (req, res) => {
   const publico = Object.fromEntries(
