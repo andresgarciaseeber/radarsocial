@@ -36,3 +36,8 @@ export async function agregarCuentaPublica(datos) {
   const { data } = await axios.post('/api/cuentas/agregar-publica', datos, { headers: headers() });
   return data;
 }
+
+export async function ejecutarRecolector() {
+  const { data } = await axios.post('/api/collect', {}, { headers: headers() });
+  return data;
+}

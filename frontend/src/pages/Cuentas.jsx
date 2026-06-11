@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import {
   listarCuentas, eliminarCuenta, obtenerPlataformas,
-  iniciarOAuth, buscarCuentaX, agregarCuentaPublica,
+  iniciarOAuth, buscarCuentaX, agregarCuentaPublica, ejecutarRecolector,
 } from '../api/cuentas';
 
 const ESTADO = {
@@ -39,6 +39,7 @@ export default function Cuentas() {
   const [cargando, setCargando]         = useState(true);
   const [aviso, setAviso]               = useState(null);
   const [sinPaginas, setSinPaginas]     = useState(false);
+  const [recolectando, setRecolectando] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Estado del buscador de X
@@ -116,6 +117,20 @@ export default function Cuentas() {
       window.location.href = await iniciarOAuth(platform);
     } catch {
       setAviso({ ok: false, texto: 'No se pudo iniciar la conexión. Verificá tu sesión.' });
+    }
+  }
+
+  async function handleRecolectar() {
+    setRecolectando(true);
+    setAviso(null);
+    try {
+      const res = await ejecutarRecolector();
+      setAviso({ ok: true, texto: res.mensaje || 'Recolección completada.' });
+      cargarDatos();
+    } catch (err) {
+      setAviso({ ok: false, texto: err.response?.data?.mensaje || 'Error al ejecutar el recolector.' });
+    } finally {
+      setRecolectando(false);
     }
   }
 
@@ -243,7 +258,19 @@ export default function Cuentas() {
 
       {/* ── Cuentas monitoreadas ──────────────────────────────── */}
       <div style={card}>
-        <h3 style={secTitle}>Cuentas monitoreadas</h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h3 style={{ ...secTitle, marginBottom: 0 }}>Cuentas monitoreadas</h3>
+          {cuentas.length > 0 && (
+            <button
+              onClick={handleRecolectar}
+              disabled={recolectando}
+              title="Trae datos nuevos de todas las cuentas ahora"
+              style={{ ...btnPrimario, fontSize: '0.78rem', padding: '5px 12px', opacity: recolectando ? 0.7 : 1 }}
+            >
+              {recolectando ? 'Recolectando...' : '↻ Recolectar ahora'}
+            </button>
+          )}
+        </div>
         {cargando ? (
           <p style={{ color: 'var(--color-texto-secundario)' }}>Cargando...</p>
         ) : cuentas.length === 0 ? (
