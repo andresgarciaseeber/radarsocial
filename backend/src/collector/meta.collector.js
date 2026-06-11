@@ -74,7 +74,7 @@ async function upsertPost(cuentaId, datos) {
   return Post.findOneAndUpdate(
     { social_account_id: cuentaId, external_post_id: datos.external_post_id },
     { ...datos, social_account_id: cuentaId, last_updated_at: new Date() },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   );
 }
 

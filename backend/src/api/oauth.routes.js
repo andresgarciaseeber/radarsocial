@@ -78,7 +78,9 @@ router.get('/meta/callback', async (req, res) => {
     logger.info('[CB2] obteniendo token largo...');
     const tokenLargoData = await metaClient.obtenerTokenLargaDuracion(tokenCortoData.access_token);
     const tokenLargo = tokenLargoData.access_token;
-    const tokenExpiresAt = new Date(Date.now() + tokenLargoData.expires_in * 1000);
+    const tokenExpiresAt = tokenLargoData.expires_in
+      ? new Date(Date.now() + tokenLargoData.expires_in * 1000)
+      : null;
 
     logger.info('[CB3] llamando /me y /me/permissions...');
     const [{ data: meInfo }, { data: perms }] = await Promise.all([
@@ -183,7 +185,7 @@ async function upsertCuenta({ platform, external_id, handle, display_name, acces
     { handle, display_name, access_token, refresh_token, token_expires_at,
       connection_status: 'conectada', connection_method: 'oauth',
       connected_by, connected_at: new Date(), last_error: null },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   );
 }
 

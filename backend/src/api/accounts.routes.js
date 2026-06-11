@@ -63,7 +63,7 @@ router.post('/agregar-publica', verificarToken, async (req, res) => {
         refresh_token:     null,
         token_expires_at:  null,
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     logger.info(`Cuenta pública agregada: x @${username} por usuario ${req.usuario.id}`);
