@@ -12,6 +12,11 @@ const OAuthState = require('../models/OAuthState');
 
 const router = express.Router();
 
+// HMAC-SHA256 requerido cuando "Requerir clave secreta de la app" está ON en Meta
+function metaProof(token) {
+  return crypto.createHmac('sha256', process.env.META_APP_SECRET).update(token).digest('hex');
+}
+
 // GET /auth/:platform/iniciar
 router.get('/:platform/iniciar', verificarToken, async (req, res) => {
   const { platform } = req.params;
@@ -73,14 +78,14 @@ router.get('/meta/callback', async (req, res) => {
     const tokenExpiresAt = new Date(Date.now() + tokenLargoData.expires_in * 1000);
 
     const [{ data: meInfo }, { data: perms }] = await Promise.all([
-      axios.get('https://graph.facebook.com/v25.0/me', { params: { access_token: tokenLargo, fields: 'id,name' } }),
-      axios.get('https://graph.facebook.com/v25.0/me/permissions', { params: { access_token: tokenLargo } }),
+      axios.get('https://graph.facebook.com/v25.0/me', { params: { access_token: tokenLargo, appsecret_proof: metaProof(tokenLargo), fields: 'id,name' } }),
+      axios.get('https://graph.facebook.com/v25.0/me/permissions', { params: { access_token: tokenLargo, appsecret_proof: metaProof(tokenLargo) } }),
     ]);
     logger.info(`Token válido para: ${meInfo.name} (${meInfo.id})`);
     logger.info('Permisos:', perms.data?.map(p => `${p.permission}:${p.status}`).join(', '));
 
     const { data: rawCuentas } = await axios.get('https://graph.facebook.com/v25.0/me/accounts', {
-      params: { access_token: tokenLargo, fields: 'id,name,access_token' },
+      params: { access_token: tokenLargo, appsecret_proof: metaProof(tokenLargo), fields: 'id,name,access_token' },
     });
     logger.info('Raw /me/accounts:', JSON.stringify(rawCuentas));
     const paginas = rawCuentas.data || [];
@@ -99,7 +104,7 @@ router.get('/meta/callback', async (req, res) => {
 
       try {
         const { data: pageDetalle } = await axios.get(`https://graph.facebook.com/v25.0/${pagina.id}`,
-          { params: { access_token: pagina.access_token, fields: 'instagram_business_account' } });
+          { params: { access_token: pagina.access_token, appsecret_proof: metaProof(pagina.access_token), fields: 'instagram_business_account' } });
         if (pageDetalle.instagram_business_account) {
           const igId = pageDetalle.instagram_business_account.id;
           const igInfo = await metaClient.obtenerMetricasInstagram(igId, pagina.access_token);

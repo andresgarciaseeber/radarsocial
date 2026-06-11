@@ -1,11 +1,18 @@
 require('dotenv').config();
+const crypto = require('crypto');
 const axios = require('axios');
 const { logger } = require('../utils/logger');
 
 const GRAPH_BASE = 'https://graph.facebook.com/v25.0';
 
-function appId() { return process.env.META_APP_ID; }
+function appId()     { return process.env.META_APP_ID; }
 function appSecret() { return process.env.META_APP_SECRET; }
+
+// HMAC-SHA256 del access_token firmado con el app_secret
+// Requerido cuando "Requerir clave secreta de la app" está activado en la app de Meta
+function proof(token) {
+  return crypto.createHmac('sha256', appSecret()).update(token).digest('hex');
+}
 
 // Intercambia token de corta duración (del OAuth) por uno de ~60 días
 async function obtenerTokenLargaDuracion(tokenCorto) {
@@ -25,6 +32,7 @@ async function obtenerCuentasVinculadas(userToken) {
   const { data } = await axios.get(`${GRAPH_BASE}/me/accounts`, {
     params: {
       access_token: userToken,
+      appsecret_proof: proof(userToken),
       fields: 'id,name,access_token,instagram_business_account',
     },
   });
@@ -36,6 +44,7 @@ async function obtenerMetricasInstagram(igUserId, pageToken) {
   const { data } = await axios.get(`${GRAPH_BASE}/${igUserId}`, {
     params: {
       access_token: pageToken,
+      appsecret_proof: proof(pageToken),
       fields: 'id,username,name,followers_count,follows_count,media_count',
     },
   });
@@ -47,6 +56,7 @@ async function obtenerMetricasFacebook(pageId, pageToken) {
   const { data } = await axios.get(`${GRAPH_BASE}/${pageId}`, {
     params: {
       access_token: pageToken,
+      appsecret_proof: proof(pageToken),
       fields: 'id,name,fan_count,followers_count',
     },
   });
@@ -58,6 +68,7 @@ async function obtenerPublicacionesInstagram(igUserId, pageToken, limite = 20) {
   const { data } = await axios.get(`${GRAPH_BASE}/${igUserId}/media`, {
     params: {
       access_token: pageToken,
+      appsecret_proof: proof(pageToken),
       fields: 'id,media_type,caption,permalink,timestamp,like_count,comments_count',
       limit: limite,
     },
@@ -70,6 +81,7 @@ async function obtenerPublicacionesFacebook(pageId, pageToken, limite = 20) {
   const { data } = await axios.get(`${GRAPH_BASE}/${pageId}/posts`, {
     params: {
       access_token: pageToken,
+      appsecret_proof: proof(pageToken),
       fields: 'id,message,story,created_time,permalink_url,reactions.summary(true),comments.summary(true),shares',
       limit: limite,
     },
@@ -82,6 +94,7 @@ async function obtenerComentarios(postId, accessToken, limite = 50) {
   const { data } = await axios.get(`${GRAPH_BASE}/${postId}/comments`, {
     params: {
       access_token: accessToken,
+      appsecret_proof: proof(accessToken),
       fields: 'id,from,message,timestamp',
       limit: limite,
     },
