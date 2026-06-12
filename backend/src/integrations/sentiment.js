@@ -12,19 +12,27 @@ async function analizarSentimientoComentarios(postIds) {
     return 0;
   }
 
+  const totalPendientes = await Comment.countDocuments({ post_id: { $in: postIds }, sentiment: null });
+  logger.info(`Sentimiento: ${totalPendientes} comentario(s) sin sentimiento para ${postIds.length} post(s)`);
+
   const pendientes = await Comment.find({
     post_id: { $in: postIds },
     sentiment: null,
-    content: { $exists: true, $ne: '' },
   }).lean();
 
-  if (!pendientes.length) return 0;
+  const conContenido = pendientes.filter(c => c.content && c.content.trim() !== '');
+  logger.info(`Sentimiento: ${pendientes.length} pendientes, ${conContenido.length} con contenido analizable`);
 
-  logger.info(`Sentimiento: analizando ${pendientes.length} comentario(s)...`);
+  if (!conContenido.length) {
+    logger.info('Sentimiento: ningún comentario tiene contenido, saliendo');
+    return 0;
+  }
+
+  logger.info(`Sentimiento: analizando ${conContenido.length} comentario(s)...`);
   let procesados = 0;
 
-  for (let i = 0; i < pendientes.length; i += BATCH_SIZE) {
-    const lote = pendientes.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < conContenido.length; i += BATCH_SIZE) {
+    const lote = conContenido.slice(i, i + BATCH_SIZE);
     try {
       const resultados = await analizarLote(lote, apiKey);
       const ops = resultados
@@ -39,7 +47,7 @@ async function analizarSentimientoComentarios(postIds) {
       procesados += lote.length;
     } catch (err) {
       const detalle = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-      logger.error(`Sentimiento: error en lote ${i / BATCH_SIZE + 1} (status ${err.response?.status ?? 'N/A'}): ${detalle}`);
+      logger.info(`Sentimiento: error en lote ${i / BATCH_SIZE + 1} (status ${err.response?.status ?? 'N/A'}): ${detalle}`);
     }
   }
 

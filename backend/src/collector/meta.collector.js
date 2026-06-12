@@ -25,7 +25,7 @@ async function colectarInstagram(cuenta, pageToken) {
       published_at: post.timestamp, likes: post.like_count ?? 0,
       comments_count: post.comments_count ?? 0, shares: 0,
     });
-    if (post.comments_count > 0 && postDoc) await colectarComentarios(post.id, postDoc._id, pageToken);
+    if (post.comments_count > 0 && postDoc) await colectarComentariosInstagram(post.id, postDoc._id, pageToken);
   }
 }
 
@@ -35,29 +35,46 @@ async function colectarFacebook(cuenta, pageToken) {
 
   const posts = await metaClient.obtenerPublicacionesFacebook(cuenta.external_id, pageToken, 20);
   for (const post of posts) {
-    await upsertPost(cuenta._id, {
+    const count = post.comments?.summary?.total_count ?? 0;
+    const postDoc = await upsertPost(cuenta._id, {
       external_post_id: post.id, type: 'texto',
       content_preview: (post.message || post.story)?.slice(0, 500) ?? null,
       url: post.permalink_url, published_at: post.created_time,
       likes: post.reactions?.summary?.total_count ?? 0,
-      comments_count: post.comments?.summary?.total_count ?? 0,
+      comments_count: count,
       shares: post.shares?.count ?? 0,
     });
+    if (count > 0 && postDoc) await colectarComentariosFacebook(post.id, postDoc._id, pageToken);
   }
 }
 
-async function colectarComentarios(externalPostId, postInternoId, accessToken) {
+async function colectarComentariosInstagram(externalPostId, postInternoId, accessToken) {
+  try {
+    const comentarios = await metaClient.obtenerComentariosInstagram(externalPostId, accessToken, 50);
+    for (const c of comentarios) {
+      await Comment.findOneAndUpdate(
+        { post_id: postInternoId, external_comment_id: c.id },
+        { author_handle: c.username ?? null, content: c.text ?? null, published_at: c.timestamp },
+        { upsert: true }
+      );
+    }
+  } catch (err) {
+    logger.warn(`Comentarios IG post ${externalPostId}: ${err.message}`);
+  }
+}
+
+async function colectarComentariosFacebook(externalPostId, postInternoId, accessToken) {
   try {
     const comentarios = await metaClient.obtenerComentarios(externalPostId, accessToken, 50);
     for (const c of comentarios) {
       await Comment.findOneAndUpdate(
         { post_id: postInternoId, external_comment_id: c.id },
-        { author_handle: c.from?.name ?? null, content: c.message, published_at: c.timestamp },
+        { author_handle: c.from?.name ?? null, content: c.message ?? null, published_at: c.timestamp },
         { upsert: true }
       );
     }
   } catch (err) {
-    logger.warn(`Comentarios post ${externalPostId}: ${err.message}`);
+    logger.warn(`Comentarios FB post ${externalPostId}: ${err.message}`);
   }
 }
 

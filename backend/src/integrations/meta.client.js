@@ -89,13 +89,26 @@ async function obtenerPublicacionesFacebook(pageId, pageToken, limite = 20) {
   return data.data || [];
 }
 
-// Comentarios de una publicación
+// Comentarios de una publicación de Facebook
 async function obtenerComentarios(postId, accessToken, limite = 50) {
   const { data } = await axios.get(`${GRAPH_BASE}/${postId}/comments`, {
     params: {
       access_token: accessToken,
       appsecret_proof: proof(accessToken),
       fields: 'id,from,message,timestamp',
+      limit: limite,
+    },
+  });
+  return data.data || [];
+}
+
+// Comentarios de una publicación de Instagram (usa 'text' y 'username', no 'message'/'from')
+async function obtenerComentariosInstagram(mediaId, accessToken, limite = 50) {
+  const { data } = await axios.get(`${GRAPH_BASE}/${mediaId}/comments`, {
+    params: {
+      access_token: accessToken,
+      appsecret_proof: proof(accessToken),
+      fields: 'id,username,text,timestamp',
       limit: limite,
     },
   });
@@ -127,6 +140,7 @@ module.exports = {
   obtenerPublicacionesInstagram,
   obtenerPublicacionesFacebook,
   obtenerComentarios,
+  obtenerComentariosInstagram,
   refrescarToken,
   verificarCredenciales,
 };
