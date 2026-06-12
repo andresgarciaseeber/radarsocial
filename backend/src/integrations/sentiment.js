@@ -38,7 +38,8 @@ async function analizarSentimientoComentarios(postIds) {
       if (ops.length) await Comment.bulkWrite(ops);
       procesados += lote.length;
     } catch (err) {
-      logger.error('Sentimiento: error en lote:', err.message);
+      const detalle = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+      logger.error(`Sentimiento: error en lote ${i / BATCH_SIZE + 1} (status ${err.response?.status ?? 'N/A'}): ${detalle}`);
     }
   }
 

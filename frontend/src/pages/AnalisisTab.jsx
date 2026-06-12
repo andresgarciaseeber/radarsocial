@@ -38,7 +38,11 @@ export default function AnalisisTab({ data, cuentaId, platColor, onSentimientoAc
     setError(null);
     try {
       const result = await analizarSentimiento(cuentaId);
-      onSentimientoActualizado(result.procesados);
+      if (result.procesados > 0) {
+        onSentimientoActualizado(result.procesados);
+      } else {
+        setError('La IA no procesó comentarios. Revisá los logs del servidor (puede ser un error con la API key de Anthropic).');
+      }
     } catch (err) {
       setError(err.response?.data?.mensaje || 'Error al analizar sentimiento.');
     } finally {
@@ -217,7 +221,7 @@ export default function AnalisisTab({ data, cuentaId, platColor, onSentimientoAc
               Hay <strong>{sentimiento.sin_analizar}</strong> comentario(s) sin analizar.
             </p>
             {sentimiento.disponible ? (
-              <button onClick={disparararAnalisis} disabled={analizando} style={btnPrimario}>
+              <button type="button" onClick={disparararAnalisis} disabled={analizando} style={btnPrimario}>
                 {analizando ? 'Analizando...' : `Analizar con IA (${sentimiento.sin_analizar} comentarios)`}
               </button>
             ) : (
@@ -277,7 +281,7 @@ export default function AnalisisTab({ data, cuentaId, platColor, onSentimientoAc
                 <p style={{ fontSize: '0.75rem', color: '#9E9E9E', marginTop: 4 }}>
                   {sentimiento.sin_analizar} comentario(s) pendientes de análisis.{' '}
                   {sentimiento.disponible && (
-                    <button onClick={disparararAnalisis} disabled={analizando}
+                    <button type="button" onClick={disparararAnalisis} disabled={analizando}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primario)', fontSize: '0.75rem', padding: 0, fontFamily: 'var(--fuente-base)' }}>
                       {analizando ? 'Analizando...' : 'Analizar ahora'}
                     </button>
