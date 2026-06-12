@@ -51,10 +51,11 @@ export default function Cuentas() {
   const [agregando, setAgregando]     = useState(false);
 
   // Estado del buscador de hashtags
-  const [hashtag, setHashtag]               = useState('');
+  const [hashtag, setHashtag]                 = useState('');
   const [buscandoHashtag, setBuscandoHashtag] = useState(false);
-  const [resultadosHashtag, setResultados]  = useState(null);
-  const [errorHashtag, setErrorHashtag]     = useState('');
+  const [resultadosHashtag, setResultados]    = useState(null);
+  const [errorHashtag, setErrorHashtag]       = useState('');
+  const [filaExpandida, setFilaExpandida]     = useState(null);
 
   useEffect(() => {
     const conectado = searchParams.get('conectado');
@@ -290,7 +291,7 @@ export default function Cuentas() {
       <div style={card}>
         <h3 style={secTitle}>Buscador de Hashtags en X</h3>
         <p style={{ fontSize: '0.83rem', color: 'var(--color-texto-secundario)', marginBottom: 16 }}>
-          Buscá quiénes están tuiteando un hashtag. Muestra el top 10 de usuarios por actividad.
+          Analiza los últimos 20 tweets con ese hashtag (últimos 7 días) y muestra el top 10 de usuarios más activos.
         </p>
 
         <form onSubmit={handleBuscarHashtag} style={{ display: 'flex', gap: 10, maxWidth: 480 }}>
@@ -301,7 +302,7 @@ export default function Cuentas() {
             }}>#</span>
             <input
               value={hashtag}
-              onChange={e => { setHashtag(e.target.value); setResultados(null); setErrorHashtag(''); }}
+              onChange={e => { setHashtag(e.target.value); setResultados(null); setErrorHashtag(''); setFilaExpandida(null); }}
               placeholder="hashtag"
               style={{
                 width: '100%', padding: '9px 14px 9px 26px',
@@ -326,7 +327,7 @@ export default function Cuentas() {
         {resultadosHashtag && !buscandoHashtag && (
           resultadosHashtag.resultados.length === 0 ? (
             <p style={{ color: 'var(--color-texto-secundario)', fontSize: '0.85rem', marginTop: 16 }}>
-              No se encontraron tweets con <strong>#{hashtag.replace(/^#+/, '')}</strong> en las últimas 24 horas.
+              No se encontraron tweets con <strong>#{hashtag.replace(/^#+/, '')}</strong> en los últimos 7 días.
             </p>
           ) : (
             <div style={{ marginTop: 20 }}>
@@ -337,36 +338,82 @@ export default function Cuentas() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      {['Usuario', 'Tweets con el hashtag', 'Followers', 'Likes totales'].map(h => (
+                      {['Usuario', 'Tweets', 'Followers', 'Likes', ''].map(h => (
                         <th key={h} style={th}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {resultadosHashtag.resultados.map((r, i) => (
-                      <tr key={r.author_id} style={{ borderTop: '1px solid #F3F4F6' }}>
-                        <td style={td}>
-                          <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{r.display_name}</div>
-                          <div style={{ color: 'var(--color-texto-secundario)', fontSize: '0.78rem' }}>@{r.username}</div>
-                        </td>
-                        <td style={{ ...td, textAlign: 'center' }}>
-                          <span style={{
-                            display: 'inline-block', minWidth: 28, padding: '2px 8px',
-                            borderRadius: 12, fontWeight: 700, fontSize: '0.85rem',
-                            background: i === 0 ? 'var(--color-primario)' : '#F3F4F6',
-                            color: i === 0 ? '#fff' : 'var(--color-texto)',
-                          }}>
-                            {r.tweets}
-                          </span>
-                        </td>
-                        <td style={{ ...td, color: 'var(--color-texto-secundario)', fontSize: '0.82rem' }}>
-                          {r.followers != null ? Number(r.followers).toLocaleString('es-AR') : '—'}
-                        </td>
-                        <td style={{ ...td, color: 'var(--color-texto-secundario)', fontSize: '0.82rem' }}>
-                          {Number(r.likes).toLocaleString('es-AR')}
-                        </td>
-                      </tr>
-                    ))}
+                    {resultadosHashtag.resultados.map((r, i) => {
+                      const abierto = filaExpandida === r.author_id;
+                      return (
+                        <>
+                          <tr
+                            key={r.author_id}
+                            style={{ borderTop: '1px solid #F3F4F6', cursor: 'pointer' }}
+                            onClick={() => setFilaExpandida(abierto ? null : r.author_id)}
+                          >
+                            <td style={td}>
+                              <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{r.display_name}</div>
+                              <div style={{ color: 'var(--color-texto-secundario)', fontSize: '0.78rem' }}>@{r.username}</div>
+                            </td>
+                            <td style={{ ...td, textAlign: 'center' }}>
+                              <span style={{
+                                display: 'inline-block', minWidth: 28, padding: '2px 8px',
+                                borderRadius: 12, fontWeight: 700, fontSize: '0.85rem',
+                                background: i === 0 ? 'var(--color-primario)' : '#F3F4F6',
+                                color: i === 0 ? '#fff' : 'var(--color-texto)',
+                              }}>
+                                {r.tweets}
+                              </span>
+                            </td>
+                            <td style={{ ...td, color: 'var(--color-texto-secundario)', fontSize: '0.82rem' }}>
+                              {r.followers != null ? Number(r.followers).toLocaleString('es-AR') : '—'}
+                            </td>
+                            <td style={{ ...td, color: 'var(--color-texto-secundario)', fontSize: '0.82rem' }}>
+                              {Number(r.likes).toLocaleString('es-AR')}
+                            </td>
+                            <td style={{ ...td, textAlign: 'right', color: 'var(--color-texto-secundario)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                              {abierto ? '▲ Ocultar' : '▼ Ver tweets'}
+                            </td>
+                          </tr>
+
+                          {abierto && (
+                            <tr key={`${r.author_id}-tweets`} style={{ background: '#F8F9FB' }}>
+                              <td colSpan={5} style={{ padding: '10px 14px 14px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                  {r.lista.map(t => (
+                                    <div key={t.id} style={{
+                                      display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                                      gap: 12, padding: '8px 12px', background: '#fff',
+                                      borderRadius: 6, border: '1px solid #E5E7EB', fontSize: '0.83rem',
+                                    }}>
+                                      <span style={{ color: 'var(--color-texto)', lineHeight: 1.5, flex: 1 }}>
+                                        {t.text}
+                                      </span>
+                                      <a
+                                        href={`https://x.com/${r.username}/status/${t.id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={e => e.stopPropagation()}
+                                        style={{
+                                          flexShrink: 0, fontSize: '0.75rem', fontWeight: 600,
+                                          color: 'var(--color-primario)', textDecoration: 'none',
+                                          padding: '3px 8px', border: '1px solid var(--color-primario)',
+                                          borderRadius: 4, whiteSpace: 'nowrap',
+                                        }}
+                                      >
+                                        Ver en X ↗
+                                      </a>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

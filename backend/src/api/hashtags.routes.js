@@ -21,10 +21,11 @@ router.get('/buscar', verificarToken, async (req, res) => {
     // Agrupar por author_id
     const porAutor = {};
     for (const tweet of tweets) {
-      const a = porAutor[tweet.author_id] ?? (porAutor[tweet.author_id] = { tweets: 0, likes: 0, retweets: 0 });
+      const a = porAutor[tweet.author_id] ?? (porAutor[tweet.author_id] = { tweets: 0, likes: 0, retweets: 0, lista: [] });
       a.tweets++;
       a.likes    += tweet.public_metrics?.like_count    ?? 0;
       a.retweets += tweet.public_metrics?.retweet_count ?? 0;
+      a.lista.push({ id: tweet.id, text: tweet.text });
     }
 
     // Top 10 por cantidad de tweets con el hashtag
@@ -46,6 +47,7 @@ router.get('/buscar', verificarToken, async (req, res) => {
         tweets:       stats.tweets,
         likes:        stats.likes,
         retweets:     stats.retweets,
+        lista:        stats.lista,
       };
     });
 
