@@ -72,6 +72,33 @@ async function obtenerTweets(userId, userToken, limite = 20) {
   return data.data || [];
 }
 
+// Búsqueda de tweets recientes por hashtag
+async function buscarHashtag(hashtag, maxResults = 20) {
+  const query = '#' + hashtag.replace(/^#+/, '').trim();
+  const { data } = await axios.get(`${API_BASE}/tweets/search/recent`, {
+    headers: { Authorization: `Bearer ${bearerToken()}` },
+    params: {
+      query,
+      max_results: Math.min(Math.max(maxResults, 10), 100),
+      'tweet.fields': 'public_metrics,author_id',
+    },
+  });
+  return data; // { data: [...tweets], meta: { result_count, ... } }
+}
+
+// Resolver hasta 100 author_id a perfiles completos (batch)
+async function obtenerUsuariosBatch(ids) {
+  if (!ids.length) return [];
+  const { data } = await axios.get(`${API_BASE}/users`, {
+    headers: { Authorization: `Bearer ${bearerToken()}` },
+    params: {
+      ids: ids.join(','),
+      'user.fields': 'public_metrics,name,username',
+    },
+  });
+  return data.data || [];
+}
+
 // Refresca el access token (scope offline.access)
 async function refrescarToken(refreshToken) {
   const params = new URLSearchParams({
@@ -92,5 +119,7 @@ module.exports = {
   obtenerTweetsPublicos,
   obtenerUsuario,
   obtenerTweets,
+  buscarHashtag,
+  obtenerUsuariosBatch,
   refrescarToken,
 };

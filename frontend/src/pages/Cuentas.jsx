@@ -5,6 +5,7 @@ import {
   listarCuentas, eliminarCuenta, obtenerPlataformas,
   iniciarOAuth, buscarCuentaX, agregarCuentaPublica, ejecutarRecolector,
 } from '../api/cuentas';
+import { buscarHashtag } from '../api/hashtags';
 
 const ESTADO = {
   conectada:     { bg: '#E8F5E9', color: '#2E7D32', label: 'Conectada' },
@@ -48,6 +49,12 @@ export default function Cuentas() {
   const [preview, setPreview]         = useState(null);
   const [errorBusqueda, setErrorBusq] = useState('');
   const [agregando, setAgregando]     = useState(false);
+
+  // Estado del buscador de hashtags
+  const [hashtag, setHashtag]               = useState('');
+  const [buscandoHashtag, setBuscandoHashtag] = useState(false);
+  const [resultadosHashtag, setResultados]  = useState(null);
+  const [errorHashtag, setErrorHashtag]     = useState('');
 
   useEffect(() => {
     const conectado = searchParams.get('conectado');
@@ -137,6 +144,23 @@ export default function Cuentas() {
       setAviso({ ok: false, texto: msg });
     } finally {
       setRecolectando(false);
+    }
+  }
+
+  async function handleBuscarHashtag(e) {
+    e.preventDefault();
+    const q = hashtag.replace(/^#+/, '').trim();
+    if (!q) return;
+    setResultados(null);
+    setErrorHashtag('');
+    setBuscandoHashtag(true);
+    try {
+      const data = await buscarHashtag(q);
+      setResultados(data);
+    } catch (err) {
+      setErrorHashtag(err.response?.data?.mensaje || 'Error al buscar el hashtag.');
+    } finally {
+      setBuscandoHashtag(false);
     }
   }
 
@@ -259,6 +283,95 @@ export default function Cuentas() {
               </button>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* ── Buscador de Hashtags ─────────────────────────────── */}
+      <div style={card}>
+        <h3 style={secTitle}>Buscador de Hashtags en X</h3>
+        <p style={{ fontSize: '0.83rem', color: 'var(--color-texto-secundario)', marginBottom: 16 }}>
+          Buscá quiénes están tuiteando un hashtag. Muestra el top 10 de usuarios por actividad.
+        </p>
+
+        <form onSubmit={handleBuscarHashtag} style={{ display: 'flex', gap: 10, maxWidth: 480 }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <span style={{
+              position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+              color: 'var(--color-texto-secundario)', fontSize: '0.95rem', pointerEvents: 'none',
+            }}>#</span>
+            <input
+              value={hashtag}
+              onChange={e => { setHashtag(e.target.value); setResultados(null); setErrorHashtag(''); }}
+              placeholder="hashtag"
+              style={{
+                width: '100%', padding: '9px 14px 9px 26px',
+                border: '1px solid #D1D5DB', borderRadius: 6,
+                fontSize: '0.9rem', fontFamily: 'var(--fuente-base)',
+              }}
+            />
+          </div>
+          <button type="submit" disabled={buscandoHashtag || !hashtag.replace(/^#+/, '').trim()} style={btnPrimario}>
+            {buscandoHashtag ? 'Buscando...' : 'Buscar'}
+          </button>
+        </form>
+
+        {errorHashtag && (
+          <p style={{ color: 'var(--color-acento)', fontSize: '0.83rem', marginTop: 12 }}>{errorHashtag}</p>
+        )}
+
+        {buscandoHashtag && (
+          <p style={{ color: 'var(--color-texto-secundario)', fontSize: '0.83rem', marginTop: 16 }}>Consultando la API de X...</p>
+        )}
+
+        {resultadosHashtag && !buscandoHashtag && (
+          resultadosHashtag.resultados.length === 0 ? (
+            <p style={{ color: 'var(--color-texto-secundario)', fontSize: '0.85rem', marginTop: 16 }}>
+              No se encontraron tweets con <strong>#{hashtag.replace(/^#+/, '')}</strong> en las últimas 24 horas.
+            </p>
+          ) : (
+            <div style={{ marginTop: 20 }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--color-texto-secundario)', marginBottom: 10 }}>
+                {resultadosHashtag.total_tweets} tweet(s) analizados · Top 10 usuarios
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      {['Usuario', 'Tweets con el hashtag', 'Followers', 'Likes totales'].map(h => (
+                        <th key={h} style={th}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resultadosHashtag.resultados.map((r, i) => (
+                      <tr key={r.author_id} style={{ borderTop: '1px solid #F3F4F6' }}>
+                        <td style={td}>
+                          <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{r.display_name}</div>
+                          <div style={{ color: 'var(--color-texto-secundario)', fontSize: '0.78rem' }}>@{r.username}</div>
+                        </td>
+                        <td style={{ ...td, textAlign: 'center' }}>
+                          <span style={{
+                            display: 'inline-block', minWidth: 28, padding: '2px 8px',
+                            borderRadius: 12, fontWeight: 700, fontSize: '0.85rem',
+                            background: i === 0 ? 'var(--color-primario)' : '#F3F4F6',
+                            color: i === 0 ? '#fff' : 'var(--color-texto)',
+                          }}>
+                            {r.tweets}
+                          </span>
+                        </td>
+                        <td style={{ ...td, color: 'var(--color-texto-secundario)', fontSize: '0.82rem' }}>
+                          {r.followers != null ? Number(r.followers).toLocaleString('es-AR') : '—'}
+                        </td>
+                        <td style={{ ...td, color: 'var(--color-texto-secundario)', fontSize: '0.82rem' }}>
+                          {Number(r.likes).toLocaleString('es-AR')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
         )}
       </div>
 

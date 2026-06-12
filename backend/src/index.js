@@ -15,6 +15,7 @@ const postsRoutes    = require('./api/posts.routes');
 const commentsRoutes  = require('./api/comments.routes');
 const analyticsRoutes = require('./api/analytics.routes');
 const collectRoutes   = require('./api/collect.routes');
+const hashtagsRoutes  = require('./api/hashtags.routes');
 
 const app = express();
 
@@ -104,6 +105,7 @@ app.use('/api/posts',       postsRoutes);
 app.use('/api/comentarios', commentsRoutes);
 app.use('/api/analytics',  analyticsRoutes);
 app.use('/api/collect',    collectRoutes);
+app.use('/api/hashtags',   hashtagsRoutes);
 
 // ── Ejecución local (fuera de Vercel) ─────────────────────────────────────
 if (!process.env.VERCEL) {
