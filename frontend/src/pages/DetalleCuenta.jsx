@@ -10,6 +10,7 @@ import { obtenerPosts } from '../api/posts';
 import { obtenerComentarios } from '../api/comentarios';
 import { obtenerAnalytics } from '../api/analytics';
 import AnalisisTab from './AnalisisTab';
+import BotsTab from './BotsTab';
 
 const PLAT_COLOR = {
   facebook: '#1877F2', instagram: '#E1306C',
@@ -149,7 +150,12 @@ export default function DetalleCuenta() {
 
       {/* ── Tabs ───────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 22, borderBottom: '2px solid #F0F0F0', overflowX: 'auto', scrollbarWidth: 'none' }}>
-        {[['metricas', 'Métricas'], ['posts', `Posts (${postsData.total})`], ['analisis', 'Análisis']].map(([key, label]) => (
+        {[
+          ['metricas', 'Métricas'],
+          ['posts', `Posts (${postsData.total})`],
+          ['analisis', 'Análisis'],
+          ...(cuenta.platform === 'x' ? [['bots', 'Bots']] : []),
+        ].map(([key, label]) => (
           <button key={key} onClick={() => handleTabChange(key)} style={{
             background: 'none', border: 'none', cursor: 'pointer',
             padding: '8px 18px', fontSize: '0.88rem', fontWeight: 600,
@@ -225,6 +231,11 @@ export default function DetalleCuenta() {
               platColor={platColor}
               onSentimientoActualizado={handleSentimientoActualizado}
             />
+      )}
+
+      {/* ── Tab: Bots ──────────────────────────────── */}
+      {tab === 'bots' && cuenta.platform === 'x' && (
+        <BotsTab cuentaId={id} />
       )}
 
       {/* ── Tab: Posts ─────────────────────────────── */}

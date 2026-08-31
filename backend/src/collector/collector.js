@@ -79,12 +79,15 @@ async function refrescarSiNecesario(cuenta) {
       : await metaClient.refrescarToken(tokenActual);
 
     const nuevaExpiracion = nuevo.expires_in ? new Date(Date.now() + nuevo.expires_in * 1000) : null;
-    await SocialAccount.findByIdAndUpdate(cuenta._id, {
-      refresh_token: cifrar(nuevo.access_token),
+    const cambios = {
+      access_token: cifrar(nuevo.access_token),
       token_expires_at: nuevaExpiracion,
-    });
-    cuenta.refresh_token = cifrar(nuevo.access_token);
-    cuenta.token_expires_at = nuevaExpiracion;
+    };
+    // X puede rotar el refresh_token en cada uso; si no viene uno nuevo, se deja el existente
+    if (nuevo.refresh_token) cambios.refresh_token = cifrar(nuevo.refresh_token);
+
+    await SocialAccount.findByIdAndUpdate(cuenta._id, cambios);
+    Object.assign(cuenta, cambios);
     logger.info(`Token refrescado OK: ${cuenta.platform} @${cuenta.handle}`);
   } catch (err) {
     logger.error(`Error al refrescar token ${cuenta.platform} @${cuenta.handle}:`, err.message);
@@ -95,4 +98,4 @@ async function refrescarSiNecesario(cuenta) {
   }
 }
 
-module.exports = { iniciarRecolector, ejecutarCiclo };
+module.exports = { iniciarRecolector, ejecutarCiclo, refrescarSiNecesario };

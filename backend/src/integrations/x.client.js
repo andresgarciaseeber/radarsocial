@@ -72,6 +72,31 @@ async function obtenerTweets(userId, userToken, limite = 20) {
   return data.data || [];
 }
 
+// Seguidores del usuario autenticado (owned read), paginado
+async function obtenerSeguidores(userId, userToken, { maxResults = 100, paginationToken } = {}) {
+  const params = {
+    'user.fields': USER_FIELDS,
+    max_results:   Math.min(Math.max(maxResults, 1), 1000),
+  };
+  if (paginationToken) params.pagination_token = paginationToken;
+
+  // Se necesita la respuesta completa (no solo `data`) para leer headers de rate limit
+  const response = await axios.get(`${API_BASE}/users/${userId}/followers`, {
+    headers: { Authorization: `Bearer ${userToken}` },
+    params,
+  });
+
+  return {
+    users:       response.data.data || [],
+    nextToken:   response.data.meta?.next_token || null,
+    resultCount: response.data.meta?.result_count ?? 0,
+    rateLimit: {
+      remaining: response.headers['x-rate-limit-remaining'] ? Number(response.headers['x-rate-limit-remaining']) : null,
+      resetAt:   response.headers['x-rate-limit-reset'] ? new Date(Number(response.headers['x-rate-limit-reset']) * 1000) : null,
+    },
+  };
+}
+
 // Búsqueda de tweets recientes por hashtag
 async function buscarHashtag(hashtag, maxResults = 20) {
   const query = '#' + hashtag.replace(/^#+/, '').trim();
@@ -119,6 +144,7 @@ module.exports = {
   obtenerTweetsPublicos,
   obtenerUsuario,
   obtenerTweets,
+  obtenerSeguidores,
   buscarHashtag,
   obtenerUsuariosBatch,
   refrescarToken,
