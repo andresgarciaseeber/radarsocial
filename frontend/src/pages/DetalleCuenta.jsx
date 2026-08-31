@@ -49,6 +49,17 @@ export default function DetalleCuenta() {
 
   useEffect(() => {
     let activo = true;
+
+    // Se navega entre cuentas sin desmontar el componente (misma ruta, distinto :id),
+    // así que hay que resetear a mano todo lo que dependía de la cuenta anterior.
+    setCuenta(location.state?.cuenta ?? null);
+    setPagina(1);
+    setPostExpandido(null);
+    setComentarios([]);
+    setAnalytics(null);
+    analyticsYaCargados.current = false;
+    if (tab === 'analisis') cargarAnalytics();
+
     async function cargar() {
       try {
         const [hist, resumen] = await Promise.all([
