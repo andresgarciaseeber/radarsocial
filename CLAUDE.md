@@ -42,11 +42,11 @@ tiempo, no solo la foto del momento que devuelven las APIs.
 El sistema se compone de **tres piezas desacopladas**. Es fundamental no
 mezclarlas:
 
-1. **Recolector (collector / worker)**: proceso en segundo plano que habla con
-   las APIs externas, respeta rate limits, y persiste snapshots en la base.
-   Corre por cron, NO en respuesta a peticiones del frontend.
+1. **Recolector (collector / worker)**: habla con las APIs externas, respeta
+   rate limits, y persiste snapshots en la base. NO corre en respuesta a
+   peticiones normales del frontend — ver nota sobre Vercel más abajo.
 
-2. **Base de datos (MySQL)**: única fuente de verdad para el dashboard. Guarda
+2. **Base de datos (MongoDB)**: única fuente de verdad para el dashboard. Guarda
    el histórico. El frontend NUNCA consulta las APIs externas directamente.
 
 3. **Admin / Dashboard (React + Vite)**: solo lee de la API interna del backend.
@@ -69,6 +69,28 @@ hay que confundir:
 
 > Ambos momentos comparten el mismo módulo de integración, pero se invocan desde
 > lugares distintos. El handshake OAuth = API REST. La extracción periódica = recolector.
+
+### ⚠️ El recolector en producción NO corre solo (Vercel serverless)
+
+El backend está deployado en **Vercel como función serverless**, no como un
+proceso persistente. Esto cambia cómo se dispara el recolector:
+
+- **En local** (`npm run dev`, sin `process.env.VERCEL`), `src/index.js` llama
+  `iniciarRecolector()` y `node-cron` agenda `COLLECTOR_CRON` dentro del mismo
+  proceso — funciona como en un servidor tradicional.
+- **En Vercel**, `node-cron` nunca arranca (no hay proceso vivo entre requests).
+  Por eso existe `GET|POST /api/collect` (`backend/src/api/collect.routes.js`):
+  un endpoint que ejecuta un ciclo completo del recolector on-demand, protegido
+  con `Authorization: Bearer <CRON_SECRET o COLLECTOR_SECRET>` (o un JWT de
+  admin desde el botón del frontend).
+- El **Vercel Cron nativo se sacó** (commit `ff609b6`) porque el plan Hobby no
+  permite la frecuencia necesaria. La intención era pegarle a `/api/collect`
+  desde **un cron externo** (ej. cron-job.org, GitHub Actions con `schedule`,
+  etc.) cada `COLLECTOR_CRON` (6h).
+- **Verificar antes de asumir que las métricas se actualizan solas:** confirmá
+  que ese cron externo esté realmente configurado y pegándole al endpoint. Si
+  no está, los snapshots no se generan y el dashboard queda con datos viejos
+  sin ningún error visible.
 
 ```
                      ┌──────────────────────────────────────┐
@@ -98,17 +120,17 @@ hay que confundir:
 
 ## 3. Stack tecnológico
 
-| Capa            | Tecnología                                   |
-|-----------------|----------------------------------------------|
-| Backend / API   | Node.js + Express                            |
-| Recolector      | Node.js + node-cron (o cron del sistema)     |
-| Base de datos   | MySQL 8.0                                     |
-| Frontend        | React + Vite                                  |
-| Gráficos        | Recharts                                      |
-| Auth            | JWT + bcrypt (login propio)                   |
-| HTTP client     | axios                                         |
-| ORM / queries   | Prisma (recomendado) o mysql2 con SQL directo |
-| Orquestación    | Docker + docker-compose                       |
+| Capa            | Tecnología                                          |
+|-----------------|------------------------------------------------------|
+| Backend / API   | Node.js + Express (deployado como función serverless en Vercel) |
+| Recolector      | Node.js + node-cron en local; en producción vía `GET/POST /api/collect` disparado por cron externo (ver sección 2) |
+| Base de datos   | MongoDB (Atlas) + Mongoose                           |
+| Frontend        | React + Vite (deployado en Vercel, proyecto separado)|
+| Gráficos        | Recharts                                             |
+| Auth            | JWT + bcrypt (login propio)                          |
+| HTTP client     | axios                                                |
+| Análisis de sentimiento | Claude Haiku (axios directo a api.anthropic.com), opcional vía `ANTHROPIC_API_KEY` |
+| Orquestación    | Sin Docker — cada carpeta (`backend/`, `frontend/`) es un proyecto Vercel independiente, cada uno con su `vercel.json` |
 
 > Nota de preferencia: comentarios de commits y de código en **español**.
 
@@ -170,147 +192,170 @@ estados por sobre el impacto visual.
 
 ## 5. Estructura de carpetas propuesta
 
+Estructura real (verificada, ago 2026):
+
 ```
-radar-social/
+radarsocial/
 ├── CLAUDE.md                  # este archivo
-├── docker-compose.yml
-├── .env.example
 ├── backend/
-│   ├── Dockerfile
+│   ├── vercel.json             # deploy serverless (proyecto Vercel "radarsocial")
+│   ├── .env.example             # única fuente de verdad de variables de entorno
 │   ├── package.json
-│   ├── src/
-│   │   ├── index.js           # arranque de Express
-│   │   ├── config/            # config, lectura de env
-│   │   ├── db/                # conexión MySQL, migraciones
-│   │   ├── auth/              # login, JWT, middleware de roles
-│   │   ├── api/               # rutas REST que consume el frontend
-│   │   │   ├── accounts.routes.js   # alta/baja/listado de cuentas
-│   │   │   ├── oauth.routes.js       # inicio y callback del flujo OAuth
-│   │   │   ├── metrics.routes.js
-│   │   │   ├── posts.routes.js
-│   │   │   └── comments.routes.js
-│   │   ├── integrations/      # clientes de cada red social
-│   │   │   ├── registry.js          # registro de plataformas (scopes, URLs)
-│   │   │   ├── meta.client.js        # Facebook + Instagram (Graph API)
-│   │   │   ├── x.client.js           # X / Twitter API
-│   │   │   └── tiktok.client.js      # TikTok API
-│   │   ├── collector/         # el worker de recolección
-│   │   │   ├── collector.js   # orquestador del cron
-│   │   │   └── tokens.js      # refresco y cifrado de tokens OAuth
-│   │   └── utils/
-│   └── tests/
+│   └── src/
+│       ├── index.js             # arranque de Express / handler serverless
+│       ├── config/index.js      # lectura de env (jwt, port, urls, collectorCron)
+│       ├── db/
+│       │   ├── index.js         # conexión Mongoose vía MONGODB_URI
+│       │   ├── migrate.js, seed.js, seed-demo.js, clear-demo.js, update-user.js
+│       ├── auth/                # login JWT + middleware de roles
+│       ├── api/                 # rutas REST que consume el frontend
+│       │   ├── accounts.routes.js    # alta/baja/listado de cuentas
+│       │   ├── oauth.routes.js       # inicio y callback del flujo OAuth
+│       │   ├── metrics.routes.js
+│       │   ├── posts.routes.js
+│       │   ├── comments.routes.js
+│       │   ├── analytics.routes.js   # tab "Análisis" (mejor hora, sentimiento, etc.)
+│       │   ├── collect.routes.js     # dispara el recolector on-demand (cron externo / botón admin)
+│       │   └── hashtags.routes.js    # búsqueda de hashtags en X, top 10 usuarios
+│       ├── integrations/
+│       │   ├── registry.js          # registro declarativo de plataformas (scopes, URLs)
+│       │   ├── meta.client.js        # Facebook + Instagram (Graph API)
+│       │   ├── x.client.js           # X / Twitter API
+│       │   ├── sentiment.js          # análisis de sentimiento vía Claude Haiku
+│       │   └── test-meta.js, test-x.js  # scripts de prueba manual aislados
+│       ├── collector/
+│       │   ├── collector.js         # orquestador (node-cron local / invocado por /api/collect en Vercel)
+│       │   ├── meta.collector.js, x.collector.js
+│       │   └── tokens.js            # refresco y cifrado AES-256-CBC de tokens OAuth
+│       ├── models/                  # 6 schemas Mongoose (ver sección 6)
+│       └── utils/logger.js
 └── frontend/
-    ├── Dockerfile
+    ├── vercel.json             # rewrites /api, /auth, /health hacia el backend
     ├── package.json
     ├── vite.config.js
     └── src/
-        ├── main.jsx
-        ├── App.jsx
-        ├── api/               # llamadas a la API interna
-        ├── components/        # gráficos, tablas, cards de métricas
-        ├── pages/             # Dashboard, Login, DetalleCuenta, Cuentas
-        └── auth/              # contexto de auth, rutas protegidas
+        ├── main.jsx, App.jsx
+        ├── api/                # clientes axios (auth, cuentas, metricas, posts, comentarios, analytics, hashtags)
+        ├── components/Layout.jsx
+        ├── pages/              # Login, Dashboard, Cuentas, DetalleCuenta, AnalisisTab, Legal
+        └── auth/               # AuthContext, ProtectedRoute
 ```
+
+> TikTok sigue sin cliente de integración (`tiktok.client.js` no existe todavía);
+> las variables de entorno están reservadas pero no hay implementación.
 
 ---
 
-## 6. Modelo de datos inicial
+## 6. Modelo de datos (Mongoose / MongoDB)
 
-Tablas mínimas. Refinar al ver las respuestas reales de cada API.
+Seis modelos en `backend/src/models/`. Los campos `id/FK` de abajo son en
+realidad `_id` de Mongo / `ObjectId` referenciado.
 
-**`users`** — quién entra al admin
+**`User`** — quién entra al admin
 ```
-id, email, password_hash, role ('admin' | 'cliente'), created_at
+email (único), password_hash (bcrypt), role ('admin' | 'cliente'), created_at
 ```
 
-**`social_accounts`** — las cuentas que monitoreamos
+**`SocialAccount`** — las cuentas que monitoreamos
 ```
-id, platform ('facebook'|'instagram'|'x'|'tiktok'),
-external_id (id de la cuenta en la plataforma),
-handle (nombre de usuario visible), display_name,
-access_token (CIFRADO), refresh_token (CIFRADO),
+platform ('facebook'|'instagram'|'x'|'tiktok'),
+external_id (único por plataforma), handle, display_name,
+access_token (CIFRADO AES-256-CBC), refresh_token (CIFRADO),
 token_expires_at,
 connection_status ('pendiente'|'conectada'|'token_vencido'|'error'|'desconectada'),
-connection_method ('oauth'|'manual'),   # manual = respaldo si OAuth no es viable
-connected_by (FK users), connected_at,
-last_error,                              # último mensaje de error, para mostrar en UI
+connection_method ('oauth'|'manual'|'publica'),  # publica = cuenta X pública sin OAuth
+connected_by (FK User), connected_at,
+last_error,
 created_at, updated_at
 ```
 > `connection_status` es lo que el dashboard muestra para que el usuario sepa
 > si una cuenta está sana o necesita reconectarse.
 
-**`oauth_states`** — seguridad del flujo OAuth (anti-CSRF)
+**`OAuthState`** — seguridad del flujo OAuth (anti-CSRF)
 ```
-id, state (string aleatorio único), platform,
-user_id (FK, quién inició la conexión),
-created_at, expires_at
+state (único), platform, user_id (FK),
+code_verifier,   # PKCE, obligatorio para X
+expires_at + índice TTL (auto-borra a los 10 min)
 ```
 > Al iniciar OAuth se genera un `state` aleatorio que se valida en el callback.
-> Evita que un tercero complete una autorización falsa. Se borra tras usarse o vencer.
+> Evita que un tercero complete una autorización falsa.
 
-**`account_snapshots`** — la métrica histórica (el corazón del sistema)
+**`AccountSnapshot`** — la métrica histórica (el corazón del sistema)
 ```
-id, social_account_id (FK),
-snapshot_date (DATE),
+social_account_id (FK), snapshot_date ('YYYY-MM-DD'),
 followers, following, posts_count,
 reach, impressions, engagement_rate,
-captured_at (DATETIME)
+índice único: { social_account_id, snapshot_date }
 ```
 > Un snapshot por cuenta por día. Esto permite graficar tendencias.
 
-**`posts`** — publicaciones individuales
+**`Post`** — publicaciones individuales
 ```
-id, social_account_id (FK),
-external_post_id, type ('foto'|'video'|'reel'|'texto'),
-content_preview, url, published_at,
-likes, comments_count, shares, views,
-last_updated_at
+social_account_id (FK), external_post_id (único por cuenta),
+type ('foto'|'video'|'reel'|'texto'), content_preview, url, published_at,
+likes, comments_count, shares, views, last_updated_at
 ```
 
-**`comments`** — comentarios/menciones sobre publicaciones propias
+**`Comment`** — comentarios sobre publicaciones propias
 ```
-id, post_id (FK), external_comment_id,
-author_handle, content, sentiment (NULL por ahora),
+post_id (FK), external_comment_id (único por post),
+author_handle, content, sentiment (null | analizado vía Claude Haiku),
 published_at, captured_at
 ```
+> Nota: la búsqueda de hashtags en X (sección "Tab Análisis"/`hashtags.routes.js`)
+> NO persiste nada — es una consulta on-demand a la API de X que se descarta.
 
 ---
 
-## 7. Variables de entorno (.env.example)
+## 7. Variables de entorno
+
+**Única fuente de verdad:** `backend/.env.example` (no hay `.env.example` en la
+raíz — se borró por quedar desactualizado con variables MySQL que ya no existen).
 
 ```dotenv
 # --- Base de datos ---
-DB_HOST=db
-DB_PORT=3306
-DB_NAME=radar_social
-DB_USER=radar_user
-DB_PASSWORD=cambiar_esto
+MONGODB_URI=mongodb+srv://USUARIO:CONTRASEÑA@cluster.mongodb.net/radar_social
 
-# --- Auth ---
-JWT_SECRET=cambiar_por_string_largo_aleatorio
-TOKEN_ENCRYPTION_KEY=clave_de_32_bytes_para_cifrar_tokens_oauth
+# --- Seguridad ---
+JWT_SECRET=cambiar_por_string_random_de_64_caracteres
+TOKEN_ENCRYPTION_KEY=cambiar_por_string_random_de_32_caracteres
 
-# --- URLs (para redirects del flujo OAuth) ---
-FRONTEND_URL=http://localhost:5173   # a donde se vuelve tras conectar una cuenta
-BACKEND_URL=http://localhost:3000
+# --- URLs ---
+FRONTEND_URL=https://larioja.navegamisitio.com.ar
+BACKEND_URL=https://radarsocial.navegamisitio.com.ar
+PORT=3000
 
 # --- Meta (Facebook + Instagram) ---
 META_APP_ID=
 META_APP_SECRET=
-META_REDIRECT_URI=http://localhost:3000/auth/meta/callback
+META_REDIRECT_URI=https://radarsocial.navegamisitio.com.ar/auth/meta/callback
+META_CONFIG_ID=            # ID de la Login Configuration del portal de Meta
 
-# --- X (Twitter) ---
-X_API_KEY=
-X_API_SECRET=
-X_BEARER_TOKEN=
+# --- X (Twitter) — OAuth 2.0 con PKCE ---
+X_CLIENT_ID=
+X_CLIENT_SECRET=
+X_BEARER_TOKEN=            # para búsqueda pública de cuentas + búsqueda de hashtags
+X_REDIRECT_URI=https://radarsocial.navegamisitio.com.ar/auth/x/callback
 
-# --- TikTok ---
+# --- TikTok (reservado, sin implementar) ---
 TIKTOK_CLIENT_KEY=
 TIKTOK_CLIENT_SECRET=
 
+# --- Análisis de sentimiento (opcional) ---
+ANTHROPIC_API_KEY=         # si falta, la feature queda deshabilitada sin romper nada más
+
 # --- Recolector ---
-COLLECTOR_CRON=0 */6 * * *   # cada 6 horas
+COLLECTOR_CRON=0 */6 * * *          # usado solo por node-cron en local
+COLLECTOR_SECRET=                    # para disparar /api/collect manualmente por curl
+# CRON_SECRET lo genera Vercel automáticamente si se configura un Cron Job — no se setea a mano
 ```
+
+> El proxy del frontend (`frontend/vercel.json`) apunta directo a la URL de
+> Vercel del backend (`https://radarsocial-five.vercel.app`), no al dominio
+> custom. El dominio `radarsocial.navegamisitio.com.ar` es el que hay que
+> registrar como redirect URI en los portales de Meta/X (así está en el .env),
+> pero verificar en el dashboard de Vercel que siga apuntando al mismo deploy
+> si algo de OAuth empieza a fallar.
 
 ---
 
@@ -429,7 +474,16 @@ export const PLATFORMS = {
 
 ---
 
-## 11. Secuencia de construcción sugerida (orden de prompts para Claude Code)
+## 11. Secuencia de construcción original (histórico — ya completado salvo TikTok)
+
+> Esta sección documenta el plan con el que arrancó el proyecto. Los pasos 1–9
+> **ya están construidos** (con MongoDB/Vercel en vez de MySQL/Docker, ver
+> secciones 2–3). Se deja como referencia de las dependencias entre piezas, y
+> porque el **Prompt 10 (TikTok) sigue pendiente**. Además del plan original ya
+> se sumaron: búsqueda de hashtags en X (`hashtags.routes.js`), disparo del
+> recolector on-demand (`collect.routes.js`, necesario por el modelo serverless
+> de Vercel) y análisis de sentimiento con Claude Haiku (`analytics.routes.js`,
+> `integrations/sentiment.js`).
 
 Construir en este orden respeta las dependencias. No saltear pasos.
 
@@ -491,6 +545,11 @@ Construir en este orden respeta las dependencias. No saltear pasos.
 > meta.client.js, agregalas al registro de plataformas y al recolector." (Solo si
 > el Paso 0 confirmó que son viables; usar `method: 'manual'` en el registro para
 > las que no soporten OAuth en el caso.)
+>
+> **Estado (ago 2026): X ya está implementado (`x.client.js`, OAuth2+PKCE,
+> `connection_method: 'publica'` como respaldo sin OAuth). Solo falta TikTok
+> — `tiktok.client.js` no existe todavía, es el único ítem pendiente del plan
+> original.**
 
 ---
 
@@ -505,3 +564,8 @@ Construir en este orden respeta las dependencias. No saltear pasos.
   frontend; quedan solo en el backend, cifrados en la base.
 - Ante la duda sobre el formato real de una respuesta de API, pedí un ejemplo
   de respuesta real en vez de inventar la estructura.
+- El backend corre serverless en Vercel: nunca asumas que hay un proceso
+  persistente entre requests (nada de estado en memoria entre llamadas, y el
+  `node-cron` de `iniciarRecolector()` solo aplica en local — ver sección 2).
+- Último commit: `94067e6` (2026-06-12). Antes de tocar algo, revisar si el
+  cron externo que dispara `/api/collect` sigue configurado y corriendo.
