@@ -32,6 +32,7 @@ body {
 
 .rs-main {
   flex: 1;
+  min-width: 0;   /* sin esto, un flex item no se achica por debajo del ancho de su contenido */
   min-height: 100vh;
   padding: 28px 32px;
 }
