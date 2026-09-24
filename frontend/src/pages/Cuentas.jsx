@@ -484,6 +484,11 @@ export default function Cuentas() {
                             @{cuenta.handle}
                           </span>
                         )}
+                        {cuenta.last_error && (
+                          <div style={{ color: 'var(--color-acento)', fontSize: '0.74rem', marginTop: 3 }} title={cuenta.last_error}>
+                            ⚠ {cuenta.last_error.length > 80 ? cuenta.last_error.slice(0, 80) + '…' : cuenta.last_error}
+                          </div>
+                        )}
                       </td>
                       <td style={td}>
                         <span style={{

@@ -30,8 +30,16 @@ async function ejecutarCiclo() {
 
   logger.info(`Recolector: ${cuentas.length} cuenta(s) a procesar`);
   for (const cuenta of cuentas) {
-    try { await procesarCuenta(cuenta); }
-    catch (err) { logger.error(`Error en ${cuenta.platform} @${cuenta.handle}:`, err.message); }
+    try {
+      await procesarCuenta(cuenta);
+      await SocialAccount.findByIdAndUpdate(cuenta._id, { last_error: null });
+    } catch (err) {
+      const mensaje = err.response?.data?.error?.error_user_msg
+        || err.response?.data?.error?.message
+        || err.message;
+      logger.error(`Error en ${cuenta.platform} @${cuenta.handle}:`, mensaje);
+      await SocialAccount.findByIdAndUpdate(cuenta._id, { last_error: mensaje?.slice(0, 500) }).catch(() => {});
+    }
     await sleep(PAUSA_MS);
   }
   logger.info('Recolector: ciclo completado.');

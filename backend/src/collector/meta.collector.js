@@ -1,16 +1,48 @@
 const metaClient = require('../integrations/meta.client');
-const { descifrar } = require('./tokens');
+const { descifrar, cifrar } = require('./tokens');
 const { logger } = require('../utils/logger');
 const AccountSnapshot = require('../models/AccountSnapshot');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
+const SocialAccount = require('../models/SocialAccount');
 
 async function colectarMeta(cuenta) {
-  const pageToken = descifrar(cuenta.access_token);
+  const pageToken = await obtenerTokenDePaginaVigente(cuenta);
   if (!pageToken) throw new Error('Token descifrado vacío');
 
   if (cuenta.platform === 'instagram') await colectarInstagram(cuenta, pageToken);
   else if (cuenta.platform === 'facebook') await colectarFacebook(cuenta, pageToken);
+}
+
+// El token de página guardado al conectar la cuenta puede quedar obsoleto para leer
+// contenido (Meta lo invalida para /posts aunque siga sirviendo para métricas públicas,
+// algo asociado a la migración de páginas a la "nueva experiencia de páginas"). Se pide
+// uno fresco en cada ciclo usando el token de usuario de larga duración (guardado en
+// refresh_token) y se persiste si cambió, para no depender del que quedó pegado al conectar.
+async function obtenerTokenDePaginaVigente(cuenta) {
+  const tokenGuardado = descifrar(cuenta.access_token);
+  const userToken = descifrar(cuenta.refresh_token);
+  if (!userToken) return tokenGuardado;
+
+  try {
+    const paginas = await metaClient.obtenerCuentasVinculadas(userToken);
+    const pagina = cuenta.platform === 'instagram'
+      ? paginas.find(p => p.instagram_business_account?.id === cuenta.external_id)
+      : paginas.find(p => p.id === cuenta.external_id);
+
+    if (!pagina?.access_token) {
+      logger.warn(`Meta: no se encontró la página vinculada al refrescar token de ${cuenta.platform} @${cuenta.handle}`);
+      return tokenGuardado;
+    }
+    if (pagina.access_token !== tokenGuardado) {
+      await SocialAccount.findByIdAndUpdate(cuenta._id, { access_token: cifrar(pagina.access_token) });
+      logger.info(`Meta: token de página renovado para ${cuenta.platform} @${cuenta.handle}`);
+    }
+    return pagina.access_token;
+  } catch (err) {
+    logger.warn(`Meta: no se pudo refrescar el token de página de ${cuenta.platform} @${cuenta.handle}: ${err.message}`);
+    return tokenGuardado;
+  }
 }
 
 async function colectarInstagram(cuenta, pageToken) {
