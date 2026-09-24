@@ -97,7 +97,7 @@ export default function AnalisisTab({ data, cuentaId, platColor, onSentimientoAc
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={mejor_hora} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F5" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 9, fill: '#9E9E9E' }} interval={1} />
+              <XAxis dataKey="label" tick={{ fontSize: 9, fill: '#9E9E9E' }} />
               <YAxis tick={{ fontSize: 9, fill: '#9E9E9E' }} />
               <Tooltip
                 formatter={v => [v, 'Eng. promedio']}
